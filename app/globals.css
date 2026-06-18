@@ -1,0 +1,100 @@
+@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-vazir: "Vazirmatn", Tahoma, sans-serif;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 110px;
+}
+
+body {
+  font-family: var(--font-vazir);
+  background-color: #160d09;
+  color: #f3e9dc;
+  overflow-x: hidden;
+}
+
+/* ---- Selection & scrollbar ---- */
+::selection {
+  background: #d4a35a;
+  color: #190d09;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #190d09;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(#8c5239, #d4a35a);
+  border-radius: 10px;
+}
+
+/* ---- Persian numerals helper ---- */
+.tnum {
+  font-feature-settings: "tnum";
+  letter-spacing: 0;
+}
+
+/* ---- 3D helpers ---- */
+.perspective {
+  perspective: 1200px;
+}
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+/* ---- Decorative gradient text ---- */
+.text-gradient-gold {
+  background: linear-gradient(110deg, #f3e9dc 0%, #d4a35a 40%, #b07b3a 60%, #f3e9dc 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+
+/* ---- Glass card surface ---- */
+.glass {
+  background: rgba(43, 24, 18, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(212, 163, 90, 0.18);
+}
+
+/* ---- Noise / grain overlay ---- */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
