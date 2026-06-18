@@ -204,7 +204,7 @@ export function MusicPlayer() {
         onClick={toggle}
         aria-label={enabled ? "بی‌صدا کردن موسیقی" : "پخش موسیقی"}
         aria-pressed={enabled}
-        className="group relative grid h-12 w-12 place-items-center rounded-full bg-espresso-800 text-gold shadow-card ring-1 ring-gold/40 transition-transform active:scale-90"
+        className="group relative grid h-12 w-12 place-items-center rounded-full glass text-gold shadow-card ring-1 ring-white/30 transition-transform active:scale-90"
       >
         {enabled && (
           <span className="absolute inset-0 animate-ping rounded-full bg-gold/20" />
@@ -239,7 +239,7 @@ export function MusicPlayer() {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -8 }}
-            className="rounded-full bg-espresso-800 px-3 py-1.5 text-xs font-semibold text-cream shadow-card ring-1 ring-gold/30"
+            className="rounded-full glass px-3 py-1.5 text-xs font-semibold text-cream shadow-card ring-1 ring-white/25"
           >
             ♪ موسیقی ملایم
           </motion.span>

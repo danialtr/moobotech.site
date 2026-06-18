@@ -16,14 +16,15 @@ export function MenuSection({ category }: { category: Category }) {
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
+          viewport={{ once: false, margin: "-80px" }}
           transition={{ duration: 0.6 }}
           className="mb-10 flex items-center gap-4"
         >
           <div
-            className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl glass"
+            className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl glass"
             style={{ boxShadow: `0 0 40px -12px ${category.accent}` }}
           >
+            <div className="pointer-events-none absolute inset-0 gloss rounded-2xl" />
             <CategoryGlyph icon={category.icon} className="h-9 w-9" style={{ color: category.accent }} />
           </div>
           <div>

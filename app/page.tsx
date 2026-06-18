@@ -6,6 +6,7 @@ import { Footer } from "@/components/Footer";
 import { ScrollProgress } from "@/components/ScrollProgress";
 import { ScrollThemeBackground } from "@/components/ScrollThemeBackground";
 import { FallingBeans } from "@/components/FallingBeans";
+import { GrowingBranch } from "@/components/GrowingBranch";
 import { MusicPlayer } from "@/components/MusicPlayer";
 
 export default function Home() {
@@ -13,6 +14,8 @@ export default function Home() {
     <>
       {/* animated, scroll-linked warm→cold ambience */}
       <ScrollThemeBackground />
+      <GrowingBranch side="left" />
+      <GrowingBranch side="right" />
       <FallingBeans />
 
       <ScrollProgress />

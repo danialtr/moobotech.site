@@ -74,7 +74,7 @@ export function ProductCard({
     <motion.div
       initial={{ opacity: 0, y: 70, rotateX: -8 }}
       whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
+      viewport={{ once: false, margin: "-50px" }}
       transition={{
         type: "spring",
         stiffness: 90,
@@ -134,6 +134,9 @@ export function ProductCard({
             </div>
           </div>
         </div>
+
+        {/* glossy liquid-glass highlight */}
+        <div className="pointer-events-none absolute inset-0 z-10 gloss rounded-3xl opacity-70" />
 
         {/* cursor glare (desktop) */}
         <motion.div

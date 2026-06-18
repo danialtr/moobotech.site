@@ -6,24 +6,42 @@ export function LogoMark(props: SVGProps<SVGSVGElement>) {
     <svg viewBox="0 0 64 64" fill="none" {...props}>
       <defs>
         <linearGradient id="logoG" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f3e9dc" />
-          <stop offset="0.55" stopColor="#d4a35a" />
-          <stop offset="1" stopColor="#8c5239" />
+          <stop offset="0" stopColor="#fde7c6" />
+          <stop offset="0.5" stopColor="#e8b878" />
+          <stop offset="1" stopColor="#b07b3a" />
+        </linearGradient>
+        <linearGradient id="logoGlass" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="rgba(255,255,255,0.55)" />
+          <stop offset="1" stopColor="rgba(255,255,255,0.05)" />
         </linearGradient>
       </defs>
+      {/* glassy badge */}
+      <circle cx="32" cy="32" r="30" fill="url(#logoGlass)" opacity="0.5" />
+      <circle cx="32" cy="32" r="29" stroke="url(#logoG)" strokeWidth="2.4" />
+      {/* steam */}
       <path
-        d="M14 26h28v10a14 14 0 0 1-14 14h0a14 14 0 0 1-14-14V26Z"
+        d="M26 11c-3 3-3 6 0 9M32 9c-3 3-3 6 0 9M38 11c-3 3-3 6 0 9"
         stroke="url(#logoG)"
-        strokeWidth="3"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+        opacity="0.9"
       />
+      {/* cup body */}
       <path
-        d="M42 30h5a6 6 0 0 1 0 12h-3"
+        d="M21 29h22v8a11 11 0 0 1-11 11 11 11 0 0 1-11-11z"
+        fill="url(#logoG)"
+      />
+      {/* handle */}
+      <path
+        d="M43 32h4a5 5 0 0 1 0 10h-2"
         stroke="url(#logoG)"
-        strokeWidth="3"
+        strokeWidth="2.6"
+        fill="none"
         strokeLinecap="round"
       />
+      {/* saucer */}
       <path
-        d="M22 8c-3 3-3 6 0 9M30 6c-3 3-3 6 0 9M38 8c-3 3-3 6 0 9"
+        d="M17 52h30"
         stroke="url(#logoG)"
         strokeWidth="2.6"
         strokeLinecap="round"

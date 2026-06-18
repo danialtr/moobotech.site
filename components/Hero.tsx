@@ -9,15 +9,20 @@ import {
   useSpring,
 } from "framer-motion";
 import { cafe, categories } from "@/lib/menu";
-import { CategoryGlyph, CoffeeBean } from "./icons";
+import { CategoryGlyph, CoffeeBean, LogoMark } from "./icons";
+
+const orbs = [
+  { top: "14%", left: "10%", size: 90, delay: 0, tint: "rgba(255,255,255,0.18)" },
+  { top: "24%", left: "84%", size: 130, delay: 1.2, tint: "rgba(212,163,90,0.22)" },
+  { top: "70%", left: "16%", size: 110, delay: 0.6, tint: "rgba(180,210,230,0.16)" },
+  { top: "76%", left: "78%", size: 80, delay: 1.8, tint: "rgba(255,255,255,0.14)" },
+];
 
 const beans = [
-  { top: "12%", left: "8%", size: 26, delay: 0 },
-  { top: "22%", left: "82%", size: 34, delay: 1.2 },
-  { top: "68%", left: "14%", size: 30, delay: 0.6 },
-  { top: "76%", left: "78%", size: 22, delay: 1.8 },
-  { top: "44%", left: "90%", size: 18, delay: 0.9 },
-  { top: "82%", left: "46%", size: 20, delay: 2.1 },
+  { top: "18%", left: "6%", size: 24, delay: 0 },
+  { top: "30%", left: "90%", size: 30, delay: 1.1 },
+  { top: "80%", left: "12%", size: 26, delay: 0.7 },
+  { top: "62%", left: "92%", size: 18, delay: 1.6 },
 ];
 
 export function Hero() {
@@ -27,15 +32,20 @@ export function Hero() {
     offset: ["start start", "end start"],
   });
 
-  const yOrbs = useTransform(scrollYProgress, [0, 1], [0, 160]);
-  const yTitle = useTransform(scrollYProgress, [0, 1], [0, -60]);
+  const yOrbs = useTransform(scrollYProgress, [0, 1], [0, 170]);
+  const yPanel = useTransform(scrollYProgress, [0, 1], [0, -50]);
   const fade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
-  // mouse tilt for the central coffee stage
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rX = useSpring(useTransform(my, [-0.5, 0.5], [14, -14]), { stiffness: 120, damping: 16 });
-  const rY = useSpring(useTransform(mx, [-0.5, 0.5], [-18, 18]), { stiffness: 120, damping: 16 });
+  const rX = useSpring(useTransform(my, [-0.5, 0.5], [16, -16]), {
+    stiffness: 120,
+    damping: 16,
+  });
+  const rY = useSpring(useTransform(mx, [-0.5, 0.5], [-20, 20]), {
+    stiffness: 120,
+    damping: 16,
+  });
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
     const r = e.currentTarget.getBoundingClientRect();
@@ -57,18 +67,30 @@ export function Hero() {
       onMouseLeave={onLeave}
       className="relative flex min-h-[100svh] items-center overflow-hidden pt-40 sm:pt-28"
     >
-      {/* gradient orbs */}
+      {/* floating glass orbs */}
       <motion.div style={{ y: yOrbs }} className="pointer-events-none absolute inset-0">
-        <div className="absolute -right-24 top-10 h-96 w-96 rounded-full bg-espresso-600/30 blur-[120px]" />
-        <div className="absolute -left-24 bottom-0 h-96 w-96 rounded-full bg-gold/20 blur-[120px]" />
-        <div className="absolute left-1/3 top-1/3 h-64 w-64 rounded-full bg-espresso-400/10 blur-[100px]" />
+        {orbs.map((o, i) => (
+          <motion.span
+            key={i}
+            className="absolute rounded-full blur-2xl"
+            style={{
+              top: o.top,
+              left: o.left,
+              width: o.size,
+              height: o.size,
+              background: o.tint,
+            }}
+            animate={{ y: [0, -22, 0], opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 6 + i, repeat: Infinity, delay: o.delay }}
+          />
+        ))}
       </motion.div>
 
-      {/* floating beans */}
+      {/* drifting beans */}
       {beans.map((b, i) => (
         <div
           key={i}
-          className="pointer-events-none absolute animate-float text-espresso-500/40"
+          className="pointer-events-none absolute animate-float text-white/25"
           style={{ top: b.top, left: b.left, animationDelay: `${b.delay}s` }}
         >
           <CoffeeBean style={{ width: b.size, height: b.size }} />
@@ -76,58 +98,71 @@ export function Hero() {
       ))}
 
       <div className="relative mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 lg:grid-cols-2">
-        {/* copy */}
-        <motion.div style={{ y: yTitle, opacity: fade }} className="text-center lg:text-right">
-          <motion.span
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-sm text-gold"
-          >
-            <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
-            تازه‌رُست، هر روز
-          </motion.span>
+        {/* glass copy panel */}
+        <motion.div
+          style={{ y: yPanel, opacity: fade }}
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+          className="sheen relative overflow-hidden rounded-[2rem] glass-bright p-7 text-center sm:p-9 lg:text-right"
+        >
+          <div className="pointer-events-none absolute inset-0 gloss rounded-[2rem]" />
+
+          <div className="relative flex items-center justify-center gap-3 lg:justify-start">
+            <motion.span
+              initial={{ rotate: -20, scale: 0.6, opacity: 0 }}
+              animate={{ rotate: 0, scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 160, damping: 12, delay: 0.1 }}
+              className="grid h-14 w-14 place-items-center rounded-2xl glass"
+            >
+              <LogoMark className="h-10 w-10" />
+            </motion.span>
+            <span className="inline-flex items-center gap-2 rounded-full glass px-3.5 py-1.5 text-xs font-semibold text-cream">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
+              تازه‌رُست، هر روز
+            </span>
+          </div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="mt-5 text-5xl font-black leading-tight sm:text-6xl lg:text-7xl"
+            transition={{ duration: 0.7, delay: 0.15 }}
+            className="relative mt-5 text-5xl font-black leading-tight sm:text-6xl lg:text-7xl"
           >
             <span className="text-gradient-gold">{cafe.name}</span>
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="mt-3 text-2xl font-bold text-cream sm:text-3xl"
+            transition={{ duration: 0.7, delay: 0.25 }}
+            className="relative mt-3 text-2xl font-bold text-white sm:text-3xl"
           >
             {cafe.tagline}
           </motion.p>
 
           <motion.p
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="mx-auto mt-5 max-w-md text-base leading-8 text-cream/70 lg:mx-0"
+            transition={{ duration: 0.7, delay: 0.35 }}
+            className="relative mx-auto mt-5 max-w-md text-base leading-8 text-cream/80 lg:mx-0"
           >
             {cafe.description}
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start"
+            transition={{ duration: 0.7, delay: 0.45 }}
+            className="relative mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start"
           >
             <a
               href="#espresso"
-              className="rounded-full bg-gradient-to-l from-gold to-espresso-500 px-7 py-3 font-bold text-espresso-950 shadow-glow transition-transform hover:scale-105"
+              className="rounded-full bg-gradient-to-l from-gold to-espresso-400 px-7 py-3 font-bold text-espresso-950 shadow-glow transition-transform hover:scale-105"
             >
               مشاهده‌ی منو
             </a>
-            <div className="flex items-center gap-2 text-sm text-cream/70">
+            <div className="flex items-center gap-2 text-sm text-cream/80">
               <span className="tnum text-2xl font-black text-gold">
                 +{itemCount.toLocaleString("fa-IR")}
               </span>
@@ -136,7 +171,7 @@ export function Hero() {
           </motion.div>
         </motion.div>
 
-        {/* 3D coffee stage */}
+        {/* 3D liquid-glass coffee stage */}
         <motion.div
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -148,34 +183,46 @@ export function Hero() {
             style={{ rotateX: rX, rotateY: rY }}
             className="preserve-3d relative grid h-72 w-72 place-items-center sm:h-96 sm:w-96"
           >
-            {/* glowing disc */}
-            <div className="absolute inset-6 rounded-full bg-gradient-to-br from-espresso-700 via-espresso-800 to-espresso-950 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] ring-1 ring-gold/20" />
-            <div className="absolute inset-6 rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(212,163,90,0.35),transparent_60%)]" />
+            {/* glass disc */}
+            <div className="absolute inset-4 overflow-hidden rounded-full glass-bright">
+              {/* rotating conic sheen */}
+              <div
+                className="absolute inset-0 animate-spinSlow opacity-50"
+                style={{
+                  background:
+                    "conic-gradient(from 0deg, transparent, rgba(255,255,255,0.35), transparent 35%, transparent 65%, rgba(212,163,90,0.3), transparent)",
+                }}
+              />
+              <div className="pointer-events-none absolute inset-0 gloss rounded-full" />
+            </div>
 
-            {/* orbiting bean ring */}
-            <div className="absolute inset-0 animate-spinSlow" style={{ transform: "translateZ(10px)" }}>
+            {/* orbiting beans */}
+            <div
+              className="absolute inset-0 animate-spinSlow"
+              style={{ transform: "translateZ(20px)" }}
+            >
               {[0, 60, 120, 180, 240, 300].map((deg) => (
                 <span
                   key={deg}
-                  className="absolute left-1/2 top-1/2 text-gold/50"
-                  style={{
-                    transform: `rotate(${deg}deg) translateY(-150px)`,
-                  }}
+                  className="absolute left-1/2 top-1/2 text-gold/60"
+                  style={{ transform: `rotate(${deg}deg) translateY(-150px)` }}
                 >
                   <CoffeeBean className="h-6 w-6" />
                 </span>
               ))}
             </div>
 
-            {/* central cup glyph */}
-            <div style={{ transform: "translateZ(60px)" }} className="relative">
-              <CategoryGlyph icon="espresso" className="h-32 w-32 text-gold drop-shadow-[0_10px_30px_rgba(212,163,90,0.5)] sm:h-40 sm:w-40" />
-              {/* steam */}
+            {/* central cup */}
+            <div style={{ transform: "translateZ(70px)" }} className="relative">
+              <CategoryGlyph
+                icon="espresso"
+                className="h-32 w-32 text-white drop-shadow-[0_10px_30px_rgba(255,255,255,0.35)] sm:h-40 sm:w-40"
+              />
               <div className="absolute -top-8 left-1/2 flex -translate-x-1/2 gap-2">
                 {[0, 1, 2].map((i) => (
                   <span
                     key={i}
-                    className="h-12 w-1.5 rounded-full bg-cream/40 blur-[2px] animate-steam"
+                    className="h-12 w-1.5 rounded-full bg-white/50 blur-[2px] animate-steam"
                     style={{ animationDelay: `${i * 0.8}s` }}
                   />
                 ))}
@@ -188,9 +235,9 @@ export function Hero() {
       {/* scroll cue */}
       <motion.div
         style={{ opacity: fade }}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-cream/50"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-cream/60"
       >
-        <div className="mx-auto flex h-9 w-6 justify-center rounded-full border border-cream/30 p-1">
+        <div className="mx-auto flex h-9 w-6 justify-center rounded-full border border-white/40 p-1">
           <motion.span
             animate={{ y: [0, 12, 0] }}
             transition={{ duration: 1.6, repeat: Infinity }}
