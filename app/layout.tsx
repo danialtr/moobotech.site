@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { cafe } from "@/lib/menu";
 
@@ -27,7 +28,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa" dir="rtl">
-      <body className="grain antialiased">{children}</body>
+      <body className="grain antialiased">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
