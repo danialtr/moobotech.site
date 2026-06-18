@@ -179,16 +179,20 @@ export function MusicPlayer() {
       await play();
       if (engineRef.current?.ctx.state === "running") remove();
     };
+    const opts: AddEventListenerOptions = { passive: true };
+    const events = [
+      "pointerdown",
+      "touchstart",
+      "keydown",
+      "click",
+      "scroll",
+      "wheel",
+      "touchmove",
+    ] as const;
     const remove = () => {
-      window.removeEventListener("pointerdown", retry);
-      window.removeEventListener("touchstart", retry);
-      window.removeEventListener("keydown", retry);
-      window.removeEventListener("click", retry);
+      events.forEach((e) => window.removeEventListener(e, retry, opts));
     };
-    window.addEventListener("pointerdown", retry);
-    window.addEventListener("touchstart", retry);
-    window.addEventListener("keydown", retry);
-    window.addEventListener("click", retry);
+    events.forEach((e) => window.addEventListener(e, retry, opts));
 
     const hideHint = window.setTimeout(() => setHint(false), 6000);
     return () => {
