@@ -45,7 +45,7 @@ export const categories: Category[] = [
     icon: "espresso",
     gradient: "from-[#4b2a20] via-[#6f3f30] to-[#2b1812]",
     accent: "#d4a35a",
-    themeColor: "#1d0f08",
+    themeColor: "#3a1d0c",
     products: [
       {
         id: "espresso",
@@ -140,7 +140,7 @@ export const categories: Category[] = [
     icon: "iced",
     gradient: "from-[#1f3a4d] via-[#2c5468] to-[#10202b]",
     accent: "#7fc7d9",
-    themeColor: "#06151f",
+    themeColor: "#06354c",
     products: [
       {
         id: "iced-americano",
@@ -199,7 +199,7 @@ export const categories: Category[] = [
     icon: "tea",
     gradient: "from-[#2f4a2e] via-[#446b3f] to-[#1b2e1a]",
     accent: "#9bc88a",
-    themeColor: "#08160d",
+    themeColor: "#0e3318",
     products: [
       {
         id: "black-tea",
@@ -256,7 +256,7 @@ export const categories: Category[] = [
     icon: "signature",
     gradient: "from-[#4a2f4d] via-[#6b3f68] to-[#2a1a2e]",
     accent: "#e0a3d4",
-    themeColor: "#150a1f",
+    themeColor: "#2a0f44",
     products: [
       {
         id: "hot-chocolate",
@@ -305,7 +305,7 @@ export const categories: Category[] = [
     icon: "dessert",
     gradient: "from-[#5a3a24] via-[#7d5232] to-[#2e1c10]",
     accent: "#e8b878",
-    themeColor: "#1e1107",
+    themeColor: "#3d1e08",
     products: [
       {
         id: "newyork-cheesecake",

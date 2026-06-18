@@ -122,13 +122,13 @@ export function ScrollThemeBackground() {
       <div
         ref={glowTop}
         aria-hidden
-        className="fixed left-1/2 top-[-20vh] -z-20 h-[70vh] w-[140vw] -translate-x-1/2 rounded-full opacity-25 blur-[130px]"
+        className="fixed left-1/2 top-[-25vh] -z-20 h-[85vh] w-[150vw] -translate-x-1/2 rounded-full opacity-[0.42] blur-[120px]"
         style={{ backgroundColor: categories[0].accent }}
       />
       <div
         ref={glowBottom}
         aria-hidden
-        className="fixed bottom-[-25vh] right-[-10vw] -z-20 h-[60vh] w-[80vw] rounded-full opacity-15 blur-[140px]"
+        className="fixed bottom-[-30vh] right-[-15vw] -z-20 h-[75vh] w-[95vw] rounded-full opacity-30 blur-[130px]"
         style={{ backgroundColor: categories[0].accent }}
       />
     </>
