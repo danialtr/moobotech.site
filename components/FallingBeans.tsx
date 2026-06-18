@@ -53,15 +53,15 @@ function Bean({
   return (
     <motion.span
       aria-hidden
-      className="absolute top-0 text-espresso-400"
+      className="absolute top-0 text-[#c98a45]"
       style={{
         left: `${seed.left}%`,
         y,
         rotate,
         rotateX,
         z: (seed.depth - 0.5) * 220,
-        opacity: 0.12 + seed.depth * 0.28,
-        filter: `blur(${(1 - seed.depth) * 2.2}px)`,
+        opacity: 0.55 + seed.depth * 0.4,
+        filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.5)) blur(${(1 - seed.depth) * 0.8}px)`,
       }}
     >
       <CoffeeBean style={{ width: seed.size, height: seed.size }} />
