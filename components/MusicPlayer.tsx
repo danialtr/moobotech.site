@@ -20,10 +20,12 @@ const CHORDS = [
 ];
 const CHORD_DUR = 7; // seconds
 const VOLUME = 0.16;
+const LS_KEY = "aura-music"; // "on" (default) | "off"
 
 export function MusicPlayer() {
   const engineRef = useRef<Engine | null>(null);
-  const [playing, setPlaying] = useState(false);
+  // user preference: music on unless explicitly muted
+  const [enabled, setEnabled] = useState(true);
   const [hint, setHint] = useState(true);
 
   const buildEngine = useCallback((): Engine => {
@@ -42,7 +44,6 @@ export function MusicPlayer() {
 
     const comp = ctx.createDynamicsCompressor();
 
-    // gentle feedback delay for a soft, roomy ambience
     const delay = ctx.createDelay();
     delay.delayTime.value = 0.34;
     const feedback = ctx.createGain();
@@ -81,7 +82,6 @@ export function MusicPlayer() {
       osc.stop(at + CHORD_DUR + 0.1);
     });
 
-    // occasional soft twinkle on top
     if (Math.random() < 0.75) {
       const t = ctx.createOscillator();
       t.type = "sine";
@@ -112,20 +112,20 @@ export function MusicPlayer() {
     [playChord]
   );
 
+  // resume + start; only begins the loop once the browser actually unlocks audio
   const play = useCallback(async () => {
     if (!engineRef.current) engineRef.current = buildEngine();
     const eng = engineRef.current;
     try {
       await eng.ctx.resume();
     } catch {
-      /* ignore */
+      /* blocked until a user gesture */
     }
+    if (eng.ctx.state !== "running") return;
     startLoop(eng);
     eng.master.gain.cancelScheduledValues(eng.ctx.currentTime);
     eng.master.gain.setValueAtTime(eng.master.gain.value, eng.ctx.currentTime);
     eng.master.gain.linearRampToValueAtTime(1, eng.ctx.currentTime + 1.4);
-    setPlaying(true);
-    setHint(false);
   }, [buildEngine, startLoop]);
 
   const pause = useCallback(() => {
@@ -137,34 +137,62 @@ export function MusicPlayer() {
     eng.running = false;
     if (eng.timer) window.clearTimeout(eng.timer);
     eng.timer = null;
-    setPlaying(false);
   }, []);
 
   const toggle = useCallback(() => {
-    if (playing) pause();
-    else void play();
-  }, [playing, pause, play]);
-
-  // auto-start on the visitor's first interaction (browsers block silent autoplay)
-  const userTouched = useRef(false);
-  useEffect(() => {
-    const onFirst = () => {
-      if (userTouched.current) return;
-      userTouched.current = true;
+    setHint(false);
+    if (enabled) {
+      setEnabled(false);
+      try {
+        localStorage.setItem(LS_KEY, "off");
+      } catch {
+        /* ignore */
+      }
+      pause();
+    } else {
+      setEnabled(true);
+      try {
+        localStorage.setItem(LS_KEY, "on");
+      } catch {
+        /* ignore */
+      }
       void play();
-      cleanup();
+    }
+  }, [enabled, pause, play]);
+
+  // On load: music plays by default; keep trying to unlock audio on the first
+  // user interaction. If the visitor previously muted it, stay muted.
+  useEffect(() => {
+    let pref: string | null = null;
+    try {
+      pref = localStorage.getItem(LS_KEY);
+    } catch {
+      /* ignore */
+    }
+    const on = pref !== "off";
+    setEnabled(on);
+    if (!on) return;
+
+    void play();
+
+    const retry = async () => {
+      await play();
+      if (engineRef.current?.ctx.state === "running") remove();
     };
-    const cleanup = () => {
-      window.removeEventListener("pointerdown", onFirst);
-      window.removeEventListener("touchstart", onFirst);
-      window.removeEventListener("keydown", onFirst);
+    const remove = () => {
+      window.removeEventListener("pointerdown", retry);
+      window.removeEventListener("touchstart", retry);
+      window.removeEventListener("keydown", retry);
+      window.removeEventListener("click", retry);
     };
-    window.addEventListener("pointerdown", onFirst, { once: false });
-    window.addEventListener("touchstart", onFirst, { once: false });
-    window.addEventListener("keydown", onFirst, { once: false });
+    window.addEventListener("pointerdown", retry);
+    window.addEventListener("touchstart", retry);
+    window.addEventListener("keydown", retry);
+    window.addEventListener("click", retry);
+
     const hideHint = window.setTimeout(() => setHint(false), 6000);
     return () => {
-      cleanup();
+      remove();
       window.clearTimeout(hideHint);
     };
   }, [play]);
@@ -174,14 +202,14 @@ export function MusicPlayer() {
       <button
         type="button"
         onClick={toggle}
-        aria-label={playing ? "خاموش کردن موسیقی" : "پخش موسیقی"}
-        aria-pressed={playing}
+        aria-label={enabled ? "بی‌صدا کردن موسیقی" : "پخش موسیقی"}
+        aria-pressed={enabled}
         className="group relative grid h-12 w-12 place-items-center rounded-full bg-espresso-800 text-gold shadow-card ring-1 ring-gold/40 transition-transform active:scale-90"
       >
-        {playing && (
+        {enabled && (
           <span className="absolute inset-0 animate-ping rounded-full bg-gold/20" />
         )}
-        {playing ? (
+        {enabled ? (
           <span className="relative flex h-5 items-end gap-[3px]">
             {[0, 1, 2, 3].map((i) => (
               <motion.span
@@ -206,7 +234,7 @@ export function MusicPlayer() {
       </button>
 
       <AnimatePresence>
-        {hint && !playing && (
+        {hint && (
           <motion.span
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
