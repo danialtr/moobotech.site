@@ -5,12 +5,14 @@ import {
   motion,
   useMotionValue,
   useMotionTemplate,
+  useScroll,
   useSpring,
   useTransform,
 } from "framer-motion";
 import type { Category, Product, ProductBadge } from "@/lib/menu";
 import { formatPrice } from "@/lib/menu";
 import { ProductArtwork } from "./ProductArtwork";
+import { usePrefersReducedMotion } from "@/lib/hooks";
 
 const badgeLabels: Record<ProductBadge, string> = {
   popular: "پرطرفدار",
@@ -28,11 +30,11 @@ export function ProductCard({
   index: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const reduced = usePrefersReducedMotion();
 
-  // raw pointer position in range [-0.5, 0.5]
+  // ---- desktop pointer tilt ----
   const px = useMotionValue(0);
   const py = useMotionValue(0);
-
   const rotateX = useSpring(useTransform(py, [-0.5, 0.5], [10, -10]), {
     stiffness: 150,
     damping: 18,
@@ -41,11 +43,20 @@ export function ProductCard({
     stiffness: 150,
     damping: 18,
   });
-
-  // glare follows the cursor
   const glareX = useTransform(px, [-0.5, 0.5], ["0%", "100%"]);
   const glareY = useTransform(py, [-0.5, 0.5], ["0%", "100%"]);
   const glare = useMotionTemplate`radial-gradient(420px circle at ${glareX} ${glareY}, rgba(255,255,255,0.18), transparent 45%)`;
+
+  // ---- scroll parallax on the artwork (great on mobile) ----
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  const imgY = useTransform(
+    scrollYProgress,
+    [0, 1],
+    reduced ? ["0%", "0%"] : ["-10%", "10%"]
+  );
 
   function handleMove(e: React.MouseEvent<HTMLDivElement>) {
     const el = ref.current;
@@ -54,7 +65,6 @@ export function ProductCard({
     px.set((e.clientX - rect.left) / rect.width - 0.5);
     py.set((e.clientY - rect.top) / rect.height - 0.5);
   }
-
   function handleLeave() {
     px.set(0);
     py.set(0);
@@ -62,10 +72,15 @@ export function ProductCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 60 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6, delay: (index % 3) * 0.08, ease: [0.21, 0.6, 0.35, 1] }}
+      initial={{ opacity: 0, y: 70, rotateX: -8 }}
+      whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{
+        type: "spring",
+        stiffness: 90,
+        damping: 16,
+        delay: (index % 3) * 0.08,
+      }}
       className="perspective"
     >
       <motion.article
@@ -74,18 +89,21 @@ export function ProductCard({
         onMouseLeave={handleLeave}
         style={{ rotateX, rotateY }}
         whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.97 }}
         className="group preserve-3d relative flex h-full flex-col overflow-hidden rounded-3xl glass shadow-card"
       >
-        {/* artwork */}
+        {/* artwork with parallax */}
         <div
           className="relative h-52 w-full overflow-hidden sm:h-56"
           style={{ transform: "translateZ(40px)" }}
         >
-          <ProductArtwork product={product} category={category} />
+          <motion.div style={{ y: imgY }} className="absolute inset-0 scale-[1.3]">
+            <ProductArtwork product={product} category={category} />
+          </motion.div>
 
           {product.badge && (
             <span
-              className="absolute right-4 top-4 rounded-full px-3 py-1 text-xs font-bold text-espresso-950 shadow-lg"
+              className="absolute right-4 top-4 z-10 rounded-full px-3 py-1 text-xs font-bold text-espresso-950 shadow-lg"
               style={{ backgroundColor: category.accent }}
             >
               {badgeLabels[product.badge]}
@@ -114,20 +132,10 @@ export function ProductCard({
               </span>
               <span className="text-xs text-cream/60">تومان</span>
             </div>
-
-            <button
-              type="button"
-              aria-label={`افزودن ${product.name}`}
-              className="grid h-10 w-10 place-items-center rounded-full border border-gold/40 text-gold transition-all duration-300 hover:scale-110 hover:bg-gold hover:text-espresso-950"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4">
-                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-              </svg>
-            </button>
           </div>
         </div>
 
-        {/* cursor glare */}
+        {/* cursor glare (desktop) */}
         <motion.div
           className="pointer-events-none absolute inset-0 z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
           style={{ background: glare }}

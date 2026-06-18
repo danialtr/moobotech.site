@@ -7,7 +7,10 @@ import { CategoryGlyph } from "./icons";
 
 export function MenuSection({ category }: { category: Category }) {
   return (
-    <section id={category.id} className="relative scroll-mt-28 py-16 sm:py-20">
+    <section
+      id={category.id}
+      className="relative scroll-mt-36 py-16 sm:scroll-mt-24 sm:py-20"
+    >
       <div className="mx-auto max-w-6xl px-6">
         {/* header */}
         <motion.div

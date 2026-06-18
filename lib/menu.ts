@@ -20,6 +20,8 @@ export interface Category {
   /** tailwind gradient classes used for the fallback artwork */
   gradient: string;
   accent: string;
+  /** deep background tone used for the scroll-linked warm→cold ambience */
+  themeColor: string;
   products: Product[];
 }
 
@@ -43,6 +45,7 @@ export const categories: Category[] = [
     icon: "espresso",
     gradient: "from-[#4b2a20] via-[#6f3f30] to-[#2b1812]",
     accent: "#d4a35a",
+    themeColor: "#1d0f08",
     products: [
       {
         id: "espresso",
@@ -137,6 +140,7 @@ export const categories: Category[] = [
     icon: "iced",
     gradient: "from-[#1f3a4d] via-[#2c5468] to-[#10202b]",
     accent: "#7fc7d9",
+    themeColor: "#06151f",
     products: [
       {
         id: "iced-americano",
@@ -195,6 +199,7 @@ export const categories: Category[] = [
     icon: "tea",
     gradient: "from-[#2f4a2e] via-[#446b3f] to-[#1b2e1a]",
     accent: "#9bc88a",
+    themeColor: "#08160d",
     products: [
       {
         id: "black-tea",
@@ -251,6 +256,7 @@ export const categories: Category[] = [
     icon: "signature",
     gradient: "from-[#4a2f4d] via-[#6b3f68] to-[#2a1a2e]",
     accent: "#e0a3d4",
+    themeColor: "#150a1f",
     products: [
       {
         id: "hot-chocolate",
@@ -299,6 +305,7 @@ export const categories: Category[] = [
     icon: "dessert",
     gradient: "from-[#5a3a24] via-[#7d5232] to-[#2e1c10]",
     accent: "#e8b878",
+    themeColor: "#1e1107",
     products: [
       {
         id: "newyork-cheesecake",

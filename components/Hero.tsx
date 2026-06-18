@@ -55,7 +55,7 @@ export function Hero() {
       ref={ref}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
-      className="relative flex min-h-[100svh] items-center overflow-hidden pt-28"
+      className="relative flex min-h-[100svh] items-center overflow-hidden pt-40 sm:pt-28"
     >
       {/* gradient orbs */}
       <motion.div style={{ y: yOrbs }} className="pointer-events-none absolute inset-0">
