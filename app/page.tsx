@@ -14,8 +14,7 @@ export default function Home() {
     <>
       {/* animated, scroll-linked warm→cold ambience */}
       <ScrollThemeBackground />
-      <GrowingBranch side="left" />
-      <GrowingBranch side="right" />
+      <GrowingBranch />
       <FallingBeans />
 
       <ScrollProgress />
