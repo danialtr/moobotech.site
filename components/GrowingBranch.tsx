@@ -9,7 +9,8 @@ import {
 } from "framer-motion";
 import { usePrefersReducedMotion } from "@/lib/hooks";
 
-const GREEN = "#2e9e4f";
+/** frosted, translucent stroke so the tree reads like glass etching */
+const STROKE = "url(#treeGrad)";
 
 /**
  * Single curving trunk drawn top→bottom on scroll. Every branch starts from an
@@ -30,18 +31,18 @@ type Branch = { d: string; t: number; w: number };
 
 // 6 main branches off the trunk, each forking into a sub-branch (12 total)
 const BRANCHES: Branch[] = [
-  { d: "M 132 160 C 100 142 70 128 42 100", t: 0.15, w: 3.6 },
-  { d: "M 42 100 C 34 80 34 60 46 42", t: 0.23, w: 2.3 },
-  { d: "M 176 300 C 212 284 246 270 276 244", t: 0.3, w: 3.6 },
-  { d: "M 276 244 C 286 224 286 202 272 184", t: 0.38, w: 2.3 },
-  { d: "M 120 440 C 86 458 54 470 24 496", t: 0.44, w: 3.6 },
-  { d: "M 24 496 C 16 514 16 536 30 556", t: 0.52, w: 2.3 },
-  { d: "M 180 580 C 216 596 250 610 280 636", t: 0.58, w: 3.6 },
-  { d: "M 280 636 C 290 656 290 678 276 696", t: 0.66, w: 2.3 },
-  { d: "M 122 720 C 88 736 56 748 26 774", t: 0.72, w: 3.6 },
-  { d: "M 26 774 C 18 792 18 814 32 834", t: 0.8, w: 2.3 },
-  { d: "M 170 860 C 206 844 240 832 270 808", t: 0.84, w: 3.6 },
-  { d: "M 270 808 C 280 788 280 766 266 748", t: 0.92, w: 2.3 },
+  { d: "M 132 160 C 100 142 70 128 42 100", t: 0.15, w: 3 },
+  { d: "M 42 100 C 34 80 34 60 46 42", t: 0.23, w: 2 },
+  { d: "M 176 300 C 212 284 246 270 276 244", t: 0.3, w: 3 },
+  { d: "M 276 244 C 286 224 286 202 272 184", t: 0.38, w: 2 },
+  { d: "M 120 440 C 86 458 54 470 24 496", t: 0.44, w: 3 },
+  { d: "M 24 496 C 16 514 16 536 30 556", t: 0.52, w: 2 },
+  { d: "M 180 580 C 216 596 250 610 280 636", t: 0.58, w: 3 },
+  { d: "M 280 636 C 290 656 290 678 276 696", t: 0.66, w: 2 },
+  { d: "M 122 720 C 88 736 56 748 26 774", t: 0.72, w: 3 },
+  { d: "M 26 774 C 18 792 18 814 32 834", t: 0.8, w: 2 },
+  { d: "M 170 860 C 206 844 240 832 270 808", t: 0.84, w: 3 },
+  { d: "M 270 808 C 280 788 280 766 266 748", t: 0.92, w: 2 },
 ];
 
 type Sprout = {
@@ -71,8 +72,16 @@ const SPROUTS: Sprout[] = [
 function LeafShape() {
   return (
     <>
-      <path d="M0 0 C 10 -13 28 -13 36 0 C 28 13 10 13 0 0 Z" fill="#3fae5c" />
-      <path d="M3 0 H 31" stroke="#175e2c" strokeWidth="1.3" fill="none" />
+      <path
+        d="M0 0 C 10 -13 28 -13 36 0 C 28 13 10 13 0 0 Z"
+        fill="rgba(206,236,214,0.55)"
+      />
+      <path
+        d="M3 0 H 31"
+        stroke="rgba(120,160,130,0.45)"
+        strokeWidth="1.1"
+        fill="none"
+      />
     </>
   );
 }
@@ -80,10 +89,9 @@ function LeafShape() {
 function CherryShape() {
   return (
     <>
-      <circle cx="0" cy="0" r="6.8" fill="#d23b30" />
-      <circle cx="11" cy="3" r="6.2" fill="#b62f26" />
-      <circle cx="-2" cy="-2" r="1.9" fill="#f6c3b1" opacity="0.85" />
-      <circle cx="9" cy="1.5" r="1.6" fill="#f6c3b1" opacity="0.8" />
+      <circle cx="0" cy="0" r="6.2" fill="rgba(212,118,108,0.55)" />
+      <circle cx="11" cy="3" r="5.6" fill="rgba(186,96,86,0.55)" />
+      <circle cx="-2" cy="-2" r="1.6" fill="rgba(255,235,228,0.6)" />
     </>
   );
 }
@@ -106,7 +114,7 @@ function Branch({ b, progress }: { b: Branch; progress: MotionValue<number> }) {
     <motion.path
       d={b.d}
       fill="none"
-      stroke={GREEN}
+      stroke={STROKE}
       strokeWidth={b.w}
       strokeLinecap="round"
       style={{ pathLength }}
@@ -129,19 +137,26 @@ export function GrowingBranch() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-y-0 left-1/2 z-30 h-[100svh] w-[42vh] min-w-[250px] max-w-[400px] -translate-x-1/2 opacity-90"
+      className="pointer-events-none fixed inset-y-0 left-1/2 z-30 h-[100svh] w-[42vh] min-w-[250px] max-w-[400px] -translate-x-1/2 opacity-40"
     >
       <svg
         viewBox="0 0 300 1000"
         preserveAspectRatio="xMidYMid meet"
         className="h-full w-full"
-        style={{ filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.45))" }}
+        style={{ filter: "drop-shadow(0 0 8px rgba(255,255,255,0.18))" }}
       >
+        <defs>
+          <linearGradient id="treeGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#e6f5ea" />
+            <stop offset="0.55" stopColor="#bfe3cb" />
+            <stop offset="1" stopColor="#a8d6ba" />
+          </linearGradient>
+        </defs>
         <motion.path
           d={TRUNK}
           fill="none"
-          stroke={GREEN}
-          strokeWidth={5.5}
+          stroke={STROKE}
+          strokeWidth={4.5}
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{ pathLength: trunkLength }}

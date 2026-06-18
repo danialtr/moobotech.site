@@ -119,7 +119,7 @@ export const categories: Category[] = [
         description: "هم‌آغوشی شکلات تلخ، اسپرسو و شیر",
         price: 135000,
         image:
-          "https://images.unsplash.com/photo-1578374173705-969cbe6f2d6b?auto=format&fit=crop&w=900&q=80",
+          "https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=900&q=80",
       },
       {
         id: "caramel-macchiato",
@@ -178,7 +178,7 @@ export const categories: Category[] = [
         description: "بستنی وانیلی غرق در شات اسپرسو داغ",
         price: 150000,
         image:
-          "https://images.unsplash.com/photo-1594461185450-7a92e5c0e7e1?auto=format&fit=crop&w=900&q=80",
+          "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=900&q=80",
         badge: "signature",
       },
       {
