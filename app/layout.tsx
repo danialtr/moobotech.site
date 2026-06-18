@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { cafe } from "@/lib/menu";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body className="grain antialiased">
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
