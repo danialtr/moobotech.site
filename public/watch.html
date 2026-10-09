@@ -86,6 +86,10 @@
   #movie::cue { background: rgba(0, 0, 0, .65); font-size: 1.05em; }
   .tools { grid-area: tools; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; align-content: flex-start; }
   .tools .spacer { flex: 1; }
+  .xfer { flex: 1 1 100%; order: 10; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); font-size: 13.5px; }
+  .xfer span { flex: 1; min-width: 0; }
+  .xfer progress { flex: 0 1 220px; min-width: 60px; height: 8px; accent-color: var(--accent); }
+  #theater.fs .xfer { display: none; }
   .side { grid-area: side; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
 
   /* empty / overlays inside the stage */
@@ -233,7 +237,7 @@
           </button>
           <button class="btn" data-act="link">Paste a video link</button>
         </div>
-        <p class="tiny" style="margin-top:14px">You can also drag &amp; drop the file here. MP4 or WebM work best.<br>Only one of you needs to open it.</p>
+        <p class="tiny" style="margin-top:14px">You can also drag &amp; drop the file here. MP4 or WebM work best.<br>Only one of you needs to open it — tap <b>Send movie to partner</b> to give them a copy for zero delay.</p>
       </div>
     </div>
 
@@ -274,12 +278,22 @@
       <svg viewBox="0 0 24 24"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><line x1="2" y1="20" x2="2.01" y2="20"/></svg>
       <span id="shareLbl">Stream to partner</span>
     </button>
+    <button class="btn hidden" id="sendBtn" title="Send the movie file so your partner plays it locally — no delay">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Send movie to partner
+    </button>
+    <a class="btn hidden" id="saveBtn" title="Save the movie you received">Save movie</a>
     <span class="spacer"></span>
     <button class="btn" id="camsBtn" title="Show / hide the cameras in fullscreen">Cams</button>
     <button class="btn" id="fsBtn" title="Fullscreen (cameras float over the movie)">
       <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
       <span>Fullscreen</span>
     </button>
+    <div class="xfer hidden" id="xfer">
+      <span id="xferText"></span>
+      <progress id="xferBar" max="1" value="0"></progress>
+      <button class="btn sm" id="xferCancel">Cancel</button>
+    </div>
   </div>
 
   <aside class="side">
@@ -368,7 +382,7 @@
 <input type="file" id="subsInput" accept=".srt,.vtt,text/vtt" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="/vendor/peerjs-1.5.4.min.js"></script>
+<script src="vendor/peerjs-1.5.4.min.js"></script>
 <script>
 (() => {
   'use strict';
@@ -410,6 +424,10 @@
     shareWanted: true,   // user can turn streaming off
     receiving: false,    // showing the partner's streamed movie
     objectUrl: null,
+    file: null,          // the File we opened (so we can send it)
+    fileOut: null,       // outgoing file transfer
+    fileIn: null,        // incoming file transfer
+    received: false,     // our current movie came from the partner
     subs: null,
     pendingSync: false,
     pendingRemote: null,
@@ -519,6 +537,7 @@
     else if (S.receiving) { badge.textContent = '● Live from ' + S.partnerName; badge.classList.remove('hidden'); }
     else badge.classList.add('hidden');
 
+    updateXfer();
     const canShare = connected() && S.source && S.source.kind === 'file' && !S.receiving;
     $('shareBtn').classList.toggle('hidden', !canShare);
     $('shareBtn').classList.toggle('on', !!S.movieOut);
@@ -623,6 +642,11 @@
    * ==================================================================== */
   function wirePeer(p) {
     p.on('call', onIncomingCall);
+    p.on('connection', (c) => {
+      if (!c.metadata || c.metadata.kind !== 'file') return;
+      if (c.peer === S.acceptedPeer && connected()) receiveFile(c);
+      else c.close();
+    });
     p.on('disconnected', () => {
       // Lost the signalling server only; existing calls keep working.
       setTimeout(() => { if (S.peer === p && !p.destroyed && p.disconnected) p.reconnect(); }, 2000);
@@ -641,6 +665,7 @@
       setStatus('Waiting for your partner — send them the link', 'wait');
     });
     p.on('connection', (c) => {
+      if (c.metadata && c.metadata.kind === 'file') return; // handled in wirePeer
       const sameTab = c.metadata && c.metadata.cid && c.metadata.cid === S.partnerCid;
       if (connected() && !sameTab && Date.now() - S.lastSeen < 8000) {
         c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 1000); });
@@ -719,6 +744,7 @@
     $('partnerVideo').srcObject = null;
     stopSharing(true);
     stopReceiving();
+    cancelTransfers();
     S.partnerSource = null;
     hideBanner();
     addSys(`${S.partnerName} left`);
@@ -836,6 +862,7 @@
     send({ t: 'stream-on' });
     sendTick();
     addSys(`Streaming “${S.source.name}” to ${S.partnerName}`);
+    if (S.file && !S.fileOut) showBanner(`Lag on ${S.partnerName}’s side? Tap “Send movie to partner” — once it’s downloaded you both play your own copy, in sync, with no delay.`);
     updateUI();
   }
 
@@ -897,10 +924,13 @@
     if (/\.(srt|vtt)$/i.test(file.name)) return readSubs(file);
     if (S.objectUrl) URL.revokeObjectURL(S.objectUrl);
     S.objectUrl = URL.createObjectURL(file);
+    S.file = file;
+    S.received = false;
     setSource({ kind: 'file', name: file.name, size: file.size }, S.objectUrl, false);
   }
 
   function loadUrl(url, fromPartner) {
+    S.file = null; S.received = false;
     let name = url;
     try { name = decodeURIComponent(new URL(url).pathname.split('/').pop()) || url; } catch (e) { /* keep url */ }
     setSource({ kind: 'url', url, name }, url, fromPartner);
@@ -908,6 +938,7 @@
 
   function setSource(src, url, fromPartner) {
     dropCapture();
+    if (S.fileOut) { S.fileOut.conn.close(); S.fileOut = null; }
     S.source = src;
     S.pendingSync = true;
     S.sharer = !fromPartner;
@@ -1044,6 +1075,13 @@
         if (sameSource(S.partnerSource)) applyRemote({ t: m.paused ? 'pause' : 'play', time: m.time });
         break;
       case 'cmd': onCmd(m); break;
+      case 'file-done':
+        if (S.fileOut) {
+          const x = S.fileOut; x.complete = true; S.fileOut = null;
+          addSys(`${S.partnerName} has the movie now ✓`);
+          setTimeout(() => x.conn.close(), 1000);
+        }
+        break;
       case 'stream-on': hideBanner(); break;
       case 'stream-off': stopReceiving(); break;
       case 'subs':
@@ -1077,6 +1115,139 @@
     }
     reconcile();
   }
+
+  /* ======================================================================
+   * Sending the movie file to the partner (peer-to-peer). While it
+   * downloads they keep watching the live stream; when it's done their
+   * page switches to its own copy, kept in sync — no stream delay.
+   * ==================================================================== */
+  const MB = 1 << 20;
+
+  function waitLow(dc) {
+    return new Promise((resolve) => {
+      const done = () => { dc.removeEventListener('bufferedamountlow', done); dc.removeEventListener('close', done); resolve(); };
+      dc.addEventListener('bufferedamountlow', done);
+      dc.addEventListener('close', done);
+    });
+  }
+
+  function sendFile() {
+    if (!connected() || !S.file || S.fileOut) return;
+    const f = S.file;
+    const c = S.peer.connect(S.conn.peer, {
+      reliable: true, serialization: 'raw',
+      metadata: { kind: 'file', name: f.name, size: f.size, type: f.type },
+    });
+    const x = S.fileOut = { conn: c, dir: 'out', total: f.size, queued: 0, done: 0, t0: 0 };
+    hideBanner();
+    c.on('open', async () => {
+      const dc = c.dataChannel;
+      dc.bufferedAmountLowThreshold = 2 * MB;
+      x.t0 = Date.now();
+      try {
+        for (let off = 0; off < f.size;) {
+          const buf = await f.slice(off, off + 4 * MB).arrayBuffer();
+          for (let i = 0; i < buf.byteLength; i += 64 * 1024) {
+            if (dc.bufferedAmount > 12 * MB) await waitLow(dc);
+            if (S.fileOut !== x || dc.readyState !== 'open') return;
+            dc.send(buf.slice(i, i + 64 * 1024));
+          }
+          off += buf.byteLength;
+          x.queued = off;
+        }
+      } catch (e) {
+        console.warn('file send', e);
+        toast('Sending the movie failed');
+        c.close();
+      }
+    });
+    c.on('close', () => {
+      if (S.fileOut !== x) return;
+      S.fileOut = null;
+      if (!x.complete) toast('Movie transfer stopped');
+      updateXfer();
+    });
+    c.on('error', (e) => console.warn('file conn', e));
+    addSys(`Sending “${f.name}” to ${S.partnerName}…`);
+    updateXfer();
+  }
+
+  function receiveFile(c) {
+    if (S.fileIn) S.fileIn.conn.close();
+    const m = c.metadata;
+    const x = S.fileIn = {
+      conn: c, dir: 'in', name: String(m.name || 'movie').slice(0, 200), type: String(m.type || ''),
+      total: Number(m.size) || 0, done: 0, t0: Date.now(), parts: [], pending: [], pendingBytes: 0,
+    };
+    c.on('data', (buf) => {
+      if (!(buf instanceof ArrayBuffer) || x.complete) return;
+      x.pending.push(buf);
+      x.pendingBytes += buf.byteLength;
+      x.done += buf.byteLength;
+      // Fold chunks into Blobs as we go so the browser can keep them on disk instead of in RAM.
+      if (x.pendingBytes >= 32 * MB) { x.parts.push(new Blob(x.pending)); x.pending = []; x.pendingBytes = 0; }
+      if (x.done >= x.total) finishReceive(x);
+    });
+    c.on('close', () => {
+      if (S.fileIn !== x) return;
+      S.fileIn = null;
+      if (!x.complete) toast('Movie transfer stopped');
+      updateXfer();
+    });
+    addSys(`${S.partnerName} is sending you “${x.name}”…`);
+    updateXfer();
+  }
+
+  function finishReceive(x) {
+    x.complete = true;
+    x.parts.push(new Blob(x.pending));
+    const file = new File(x.parts, x.name, { type: x.type });
+    x.parts = x.pending = [];
+    S.fileIn = null;
+    send({ t: 'file-done' });
+    loadFile(file); // switch to our own copy; it syncs to the partner's position
+    S.received = true;
+    addSys('Movie downloaded ✓ — you now each play your own copy, in sync');
+    toast('Movie downloaded — no more delay 🎉');
+    updateXfer();
+  }
+
+  function cancelTransfers() {
+    [S.fileOut, S.fileIn].forEach((x) => { if (x) x.conn.close(); });
+    S.fileOut = S.fileIn = null;
+    updateXfer();
+  }
+
+  function fmtLeft(sec) {
+    if (!isFinite(sec) || sec <= 0) return '';
+    return sec < 90 ? Math.ceil(sec) + ' s left' : Math.ceil(sec / 60) + ' min left';
+  }
+
+  function updateXfer() {
+    const canSend = connected() && S.file && !S.received && S.source && S.source.kind === 'file' &&
+      !sameSource(S.partnerSource) && !S.fileOut && !S.receiving;
+    $('sendBtn').classList.toggle('hidden', !canSend);
+    const save = $('saveBtn');
+    save.classList.toggle('hidden', !(S.received && S.objectUrl));
+    if (S.received && S.objectUrl) { save.href = S.objectUrl; save.download = (S.source && S.source.name) || 'movie'; }
+
+    const x = S.fileOut || S.fileIn;
+    $('xfer').classList.toggle('hidden', !x);
+    if (!x) return;
+    let done = x.done;
+    if (x.dir === 'out') {
+      const dc = x.conn.dataChannel;
+      done = Math.max(0, x.queued - (dc ? dc.bufferedAmount : 0));
+    }
+    const pct = x.total ? Math.min(1, done / x.total) : 0;
+    const secs = (Date.now() - x.t0) / 1000;
+    const rate = x.t0 && secs > 1 ? done / secs : 0;
+    const who = x.dir === 'out' ? `Sending movie to ${S.partnerName}` : `Downloading movie from ${S.partnerName}`;
+    $('xferBar').value = pct;
+    $('xferText').textContent = !x.t0 ? who + ' — connecting…'
+      : `${who} — ${Math.floor(pct * 100)}%` + (rate ? ` · ${(rate / MB).toFixed(1)} MB/s · ${fmtLeft((x.total - done) / rate)}` : '');
+  }
+  setInterval(() => { if (S.fileOut || S.fileIn) updateXfer(); }, 700);
 
   /* ======================================================================
    * Subtitles (.srt / .vtt), shared with the partner
@@ -1146,6 +1317,8 @@
     reconcile();
     if (S.shareWanted && !S.movieOut) toast('Press play — the stream starts as soon as the video has a picture');
   };
+  $('sendBtn').onclick = sendFile;
+  $('xferCancel').onclick = cancelTransfers;
   $('bannerClose').onclick = hideBanner;
   $('tapPlay').onclick = () => { $('tapPlay').classList.add('hidden'); movie.play().catch(() => {}); };
 
