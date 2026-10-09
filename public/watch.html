@@ -1,0 +1,1245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Movie Night</title>
+<meta name="description" content="Watch a movie together with your partner — the film streams from your laptop, with camera and voice chat. Peer-to-peer, nothing is uploaded.">
+<meta name="theme-color" content="#0c0b10">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8D%BF%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0c0b10;
+    --panel: #15141c;
+    --panel-2: #1d1b26;
+    --line: #2b2836;
+    --text: #efedf5;
+    --muted: #9b97ab;
+    --accent: #ff5577;
+    --accent-2: #ff8a5c;
+    --ok: #38d996;
+    --warn: #ffc24b;
+    --err: #ff5c5c;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #2a1630 0%, transparent 60%), var(--bg);
+    color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input { font: inherit; color: inherit; }
+  .hidden { display: none !important; }
+  svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel-2); cursor: pointer; white-space: nowrap;
+    transition: background .15s, border-color .15s, transform .1s;
+  }
+  .btn:hover { background: #262331; border-color: #3a3648; }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; color: #fff; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 6px 10px; font-size: 13px; }
+  .btn.big { padding: 13px 20px; font-size: 16px; width: 100%; }
+  .btn.on { background: #2f1d28; border-color: var(--accent); color: #ffd0da; }
+  .icon-btn { width: 42px; height: 42px; padding: 0; border-radius: 50%; }
+  .icon-btn.off { background: var(--err); border-color: var(--err); color: #fff; }
+
+  /* ---------- header ---------- */
+  .top {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    border-bottom: 1px solid var(--line); background: rgba(12, 11, 16, .7); backdrop-filter: blur(8px);
+  }
+  .brand { font-weight: 700; letter-spacing: .2px; display: flex; align-items: center; gap: 8px; }
+  .brand .logo { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); font-size: 14px; }
+  .now { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); padding: 5px 10px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); white-space: nowrap; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .status[data-kind="ok"] .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .status[data-kind="wait"] .dot { background: var(--warn); animation: pulse 1.4s infinite; }
+  .status[data-kind="err"] .dot { background: var(--err); }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  /* ---------- layout ---------- */
+  #theater {
+    display: grid; gap: 14px; padding: 14px 16px 18px;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: "stage side" "tools side";
+    grid-template-rows: auto 1fr;
+    max-width: 1600px; margin: 0 auto;
+  }
+  .stage {
+    grid-area: stage; position: relative; background: #000; border-radius: var(--radius); overflow: hidden;
+    aspect-ratio: 16 / 9; max-height: calc(100vh - 150px); width: 100%; border: 1px solid var(--line);
+  }
+  .stage.drag { outline: 2px dashed var(--accent); outline-offset: -8px; }
+  #movie { width: 100%; height: 100%; display: block; background: #000; }
+  #movie::cue { background: rgba(0, 0, 0, .65); font-size: 1.05em; }
+  .tools { grid-area: tools; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; align-content: flex-start; }
+  .tools .spacer { flex: 1; }
+  .side { grid-area: side; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+
+  /* empty / overlays inside the stage */
+  .empty {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px;
+    background: radial-gradient(600px 300px at 50% 40%, #241a2c, #000 75%);
+  }
+  .empty h2 { margin: 0 0 6px; font-size: clamp(20px, 3vw, 28px); }
+  .empty p { margin: 0 auto 16px; color: var(--muted); max-width: 480px; }
+  .empty .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .tiny { font-size: 12.5px; color: var(--muted); }
+  .banner {
+    position: absolute; left: 12px; right: 12px; top: 12px; display: flex; gap: 10px; align-items: center;
+    padding: 10px 12px; border-radius: 12px; background: rgba(21, 20, 28, .92); border: 1px solid var(--line); font-size: 14px; z-index: 3;
+  }
+  .banner span { flex: 1; }
+  .banner .x { background: none; border: 0; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 4px; }
+  .center-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .55); z-index: 4; }
+  .streambar {
+    position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, .85)); z-index: 2; opacity: 0; transition: opacity .25s;
+  }
+  .stage:hover .streambar, .streambar:focus-within, .streambar.show { opacity: 1; }
+  .streambar .time { font-size: 12.5px; font-variant-numeric: tabular-nums; color: #ddd; white-space: nowrap; }
+  .streambar input[type=range] { flex: 1; min-width: 60px; }
+  .streambar input[type=range].vol { flex: 0 0 80px; min-width: 0; }
+  .badge { position: absolute; top: 12px; left: 12px; z-index: 2; font-size: 12px; padding: 4px 9px; border-radius: 99px; background: rgba(255, 85, 119, .9); color: #fff; font-weight: 600; pointer-events: none; }
+  input[type=range] { accent-color: var(--accent); }
+
+  /* floating reactions */
+  .fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+  .fx span { position: absolute; bottom: -40px; font-size: 38px; animation: floatUp 2.8s ease-out forwards; }
+  @keyframes floatUp {
+    0% { transform: translateY(0) scale(.6); opacity: 0; }
+    15% { opacity: 1; transform: translateY(-15vh) scale(1.1); }
+    100% { transform: translateY(-75vh) scale(1); opacity: 0; }
+  }
+
+  /* ---------- camera tiles ---------- */
+  .cams { display: grid; gap: 10px; }
+  .tile { position: relative; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); aspect-ratio: 4 / 3; }
+  .tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile.me video { transform: scaleX(-1); }
+  .tile.me { position: absolute; right: 8px; bottom: 8px; width: 32%; aspect-ratio: 4 / 3; border-radius: 9px; border: 2px solid rgba(255, 255, 255, .15); z-index: 2; }
+  .tile .ph { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); background: var(--panel-2); font-size: 13px; padding: 8px; }
+  .tile .ph .avatar { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 6px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 700; font-size: 22px; }
+  .tile.me .ph .avatar { width: 30px; height: 30px; font-size: 13px; margin-bottom: 2px; }
+  .tile.me .ph { font-size: 11px; }
+  .tile .label { position: absolute; left: 8px; bottom: 8px; font-size: 12px; padding: 3px 8px; border-radius: 99px; background: rgba(0, 0, 0, .6); display: flex; gap: 5px; align-items: center; z-index: 1; }
+  .tile .label svg { width: 13px; height: 13px; color: var(--err); }
+  .partner-wrap { position: relative; }
+  .callbar { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .callbar .vol-wrap { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  .callbar .vol-wrap input { width: 90px; }
+
+  /* ---------- chat ---------- */
+  .chat { flex: 1; min-height: 220px; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .chat .log { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-height: 120px; max-height: 40vh; }
+  .msg { max-width: 85%; padding: 7px 10px; border-radius: 12px; background: var(--panel-2); word-wrap: break-word; align-self: flex-start; }
+  .msg b { display: block; font-size: 11.5px; color: var(--accent-2); font-weight: 600; }
+  .msg.mine { align-self: flex-end; background: #34202c; }
+  .msg.mine b { color: #ffb3c4; }
+  .sys { align-self: center; font-size: 12px; color: var(--muted); text-align: center; }
+  .reacts { display: flex; gap: 2px; padding: 4px 8px; border-top: 1px solid var(--line); justify-content: space-between; }
+  .reacts button { background: none; border: 0; font-size: 21px; padding: 4px 6px; border-radius: 8px; cursor: pointer; transition: transform .1s; }
+  .reacts button:hover { background: var(--panel-2); transform: scale(1.15); }
+  .chat form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
+  .chat input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); outline: none; }
+  .chat input:focus { border-color: var(--accent); }
+
+  /* ---------- join screen / dialog / toast ---------- */
+  .overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(8, 7, 11, .82); backdrop-filter: blur(10px); overflow-y: auto; }
+  .card { width: 100%; min-width: 0; max-width: 440px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+  .card h1 { margin: 0 0 4px; font-size: 26px; }
+  .card p { margin: 0 0 16px; color: var(--muted); }
+  .card label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+  .card label input { display: block; width: 100%; margin-top: 6px; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); outline: none; }
+  .card label input:focus { border-color: var(--accent); }
+  .share { display: flex; gap: 6px; margin: 6px 0 4px; }
+  .share code { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .actions { display: grid; gap: 8px; margin-top: 18px; }
+  .steps { margin: 0 0 16px; padding-left: 20px; color: var(--muted); font-size: 13.5px; }
+  .steps li { margin-bottom: 3px; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 20px; width: min(460px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0, 0, 0, .6); }
+  dialog h3 { margin: 0 0 10px; }
+  dialog input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); outline: none; }
+  dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; z-index: 60;
+    background: #26232f; border: 1px solid var(--line); padding: 10px 16px; border-radius: 12px; max-width: calc(100vw - 32px);
+    transition: opacity .2s, transform .2s; pointer-events: none; text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- fullscreen: movie fills the screen, cameras float ---------- */
+  #theater.fs { display: block; padding: 0; max-width: none; height: 100vh; background: #000; position: relative; }
+  #theater.fs .stage { position: absolute; inset: 0; max-height: none; aspect-ratio: auto; border: 0; border-radius: 0; }
+  #theater.fs .side { position: absolute; top: 16px; right: 16px; width: 240px; z-index: 6; gap: 8px; }
+  #theater.fs .chat { display: none; }
+  #theater.fs .callbar { opacity: .25; transition: opacity .2s; }
+  #theater.fs .side:hover .callbar { opacity: 1; }
+  #theater.fs .tools { position: absolute; top: 16px; left: 16px; z-index: 6; opacity: .25; transition: opacity .2s; }
+  #theater.fs .tools:hover { opacity: 1; }
+  #theater.fs .tools .spacer, #theater.fs .tools .hide-fs { display: none; }
+  #theater.fs .badge { top: 64px; }
+  #theater.fs.cams-hidden .cams { display: none; }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 900px) {
+    #theater { grid-template-columns: 1fr; grid-template-areas: "stage" "tools" "side"; grid-template-rows: auto; padding: 10px 12px 16px; }
+    .stage { max-height: 60vh; }
+    .side { flex-direction: column; }
+    .chat .log { max-height: 30vh; }
+    .now { display: none; }
+    .top { padding: 10px 12px; gap: 8px; }
+    .top .btn .lbl { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><span class="logo">▶</span><span>Movie Night</span></div>
+  <div class="now" id="now"></div>
+  <div class="status" id="status" data-kind=""><span class="dot"></span><span id="statusText">Not connected</span></div>
+  <button class="btn sm" id="inviteBtn" title="Copy invite link">
+    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="lbl">Invite link</span>
+  </button>
+</header>
+
+<main id="theater">
+  <section class="stage" id="stage">
+    <video id="movie" playsinline controls preload="metadata"></video>
+
+    <div class="empty" id="empty">
+      <div>
+        <h2>Pick tonight’s movie 🍿</h2>
+        <p>Open the film from your computer. It streams straight to your partner — they don’t need a copy, and nothing is uploaded anywhere.</p>
+        <div class="row">
+          <button class="btn primary" data-act="open">
+            <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            Open movie file
+          </button>
+          <button class="btn" data-act="link">Paste a video link</button>
+        </div>
+        <p class="tiny" style="margin-top:14px">You can also drag &amp; drop the file here. MP4 or WebM work best.<br>Only one of you needs to open it.</p>
+      </div>
+    </div>
+
+    <div class="badge hidden" id="liveBadge"></div>
+
+    <div class="banner hidden" id="banner">
+      <span id="bannerText"></span>
+      <button class="x" id="bannerClose" aria-label="Dismiss">×</button>
+    </div>
+
+    <div class="streambar hidden" id="streambar">
+      <button class="btn sm icon-btn" id="sbPlay" style="width:36px;height:36px" aria-label="Play / pause">
+        <svg viewBox="0 0 24 24" id="sbPlayIc"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+      </button>
+      <span class="time" id="sbTime">0:00 / 0:00</span>
+      <input type="range" id="sbSeek" min="0" max="0" step="0.1" value="0" aria-label="Seek">
+      <svg viewBox="0 0 24 24" style="color:#ccc"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      <input type="range" class="vol" id="sbVol" min="0" max="1" step="0.05" value="1" aria-label="Movie volume">
+    </div>
+
+    <div class="center-overlay hidden" id="tapPlay">
+      <button class="btn primary big" style="width:auto">▶ Tap to start watching</button>
+    </div>
+
+    <div class="fx" id="fx"></div>
+  </section>
+
+  <div class="tools">
+    <button class="btn" data-act="open" title="Open a movie file from your computer">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      Open movie
+    </button>
+    <button class="btn hide-fs" data-act="subs" title="Add .srt or .vtt subtitles">
+      <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 15h4M14 15h3M7 11h2M12 11h5"/></svg>
+      Subtitles
+    </button>
+    <button class="btn hidden" id="shareBtn" title="Stream your movie to your partner">
+      <svg viewBox="0 0 24 24"><path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><line x1="2" y1="20" x2="2.01" y2="20"/></svg>
+      <span id="shareLbl">Stream to partner</span>
+    </button>
+    <span class="spacer"></span>
+    <button class="btn" id="camsBtn" title="Show / hide the cameras in fullscreen">Cams</button>
+    <button class="btn" id="fsBtn" title="Fullscreen (cameras float over the movie)">
+      <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      <span>Fullscreen</span>
+    </button>
+  </div>
+
+  <aside class="side">
+    <div class="cams">
+      <div class="partner-wrap">
+        <div class="tile partner">
+          <video id="partnerVideo" autoplay playsinline></video>
+          <div class="ph" id="partnerPh"><div><div class="avatar" id="partnerAvatar">?</div><span id="partnerPhText">Waiting for your partner…</span></div></div>
+          <div class="label"><span id="partnerLabel">Partner</span><svg class="hidden" id="partnerMicOff" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div>
+        </div>
+        <div class="tile me">
+          <video id="myVideo" autoplay playsinline muted></video>
+          <div class="ph hidden" id="myPh"><div><div class="avatar" id="myAvatar">?</div>Camera off</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callbar">
+      <button class="btn icon-btn" id="micBtn" title="Mute / unmute microphone">
+        <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/><line class="slash hidden" x1="2" y1="2" x2="22" y2="22"/></svg>
+      </button>
+      <button class="btn icon-btn" id="camBtn" title="Turn camera on / off">
+        <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/><line class="slash hidden" x1="2" y1="2" x2="22" y2="22"/></svg>
+      </button>
+      <label class="vol-wrap" title="Partner's voice volume">
+        <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        <input type="range" id="partnerVol" min="0" max="1" step="0.05" value="1" aria-label="Partner volume">
+      </label>
+    </div>
+
+    <div class="chat">
+      <div class="log" id="log"></div>
+      <div class="reacts" id="reacts">
+        <button data-e="❤️">❤️</button><button data-e="😂">😂</button><button data-e="😮">😮</button>
+        <button data-e="😢">😢</button><button data-e="😱">😱</button><button data-e="🔥">🔥</button><button data-e="🍿">🍿</button>
+      </div>
+      <form id="chatForm" autocomplete="off">
+        <input id="chatInput" placeholder="Say something…" maxlength="500">
+        <button class="btn primary sm" aria-label="Send">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </form>
+    </div>
+  </aside>
+</main>
+
+<!-- join screen -->
+<div class="overlay" id="join">
+  <div class="card">
+    <h1>Movie night 🍿</h1>
+    <p>Watch a film together with camera and voice. Everything goes directly between your two browsers.</p>
+    <ol class="steps">
+      <li>Send this link to your partner.</li>
+      <li>Both of you join with camera &amp; mic.</li>
+      <li>You open the movie from your laptop — it plays for both of you.</li>
+    </ol>
+    <div class="tiny">Your private room link</div>
+    <div class="share">
+      <code id="roomLink"></code>
+      <button class="btn sm" id="joinCopy">Copy</button>
+    </div>
+    <label style="margin-top:14px">Your name
+      <input id="nameInput" maxlength="24" placeholder="e.g. Sam" autocomplete="nickname">
+    </label>
+    <div class="actions">
+      <button class="btn primary big" id="joinBtn">Join with camera &amp; mic</button>
+      <button class="btn ghost" id="joinNoCam">Join with mic only</button>
+    </div>
+    <p class="tiny" style="margin:14px 0 0">🎧 Wear headphones so your mic doesn’t pick up the movie sound.</p>
+  </div>
+</div>
+
+<dialog id="linkDlg">
+  <form method="dialog">
+    <h3>Paste a direct video link</h3>
+    <input type="url" id="linkInput" placeholder="https://example.com/movie.mp4" required>
+    <p class="tiny">Must link straight to a video file (.mp4 / .webm). YouTube or Netflix pages won’t work. The link opens on both screens.</p>
+    <div class="row">
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" value="ok">Play for both</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="fileInput" accept="video/*,audio/*,.mkv,.mp4,.webm,.mov,.m4v,.srt,.vtt" hidden>
+<input type="file" id="subsInput" accept=".srt,.vtt,text/vtt" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/vendor/peerjs-1.5.4.min.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  /* ======================================================================
+   * Config
+   * ==================================================================== */
+  // STUN servers help the two browsers find each other. On very strict
+  // networks (some offices / mobile carriers) you may need to add a TURN
+  // server here, e.g. { urls: 'turn:turn.example.com:3478', username: 'u', credential: 'p' }
+  const ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+  ];
+  const ID_PREFIX = 'moobotech-movienight-';
+  const MOVIE_BITRATE = 8_000_000; // bits/s for the streamed film (WebRTC adapts down if needed)
+
+  const $ = (id) => document.getElementById(id);
+  const movie = $('movie');
+
+  const S = {
+    peer: null,          // our PeerJS peer
+    conn: null,          // data channel to the partner
+    camCall: null,       // camera / mic call
+    movieOut: null,      // call carrying our movie to the partner
+    movieIn: null,       // call carrying the partner's movie to us
+    outCapture: null,    // MediaStream captured from <video>
+    outAudioCtx: null,   // Firefox: keeps local movie sound audible while capturing
+    local: null,         // our camera + mic stream
+    isHost: false,       // we own the room id
+    attempts: 0,
+    full: false,
+    mic: true, cam: true,
+    name: '', partnerName: 'Partner', pMic: true, pCam: true,
+    source: null,        // what we have loaded: {kind:'file'|'url', name, size?, url?}
+    partnerSource: null, // what the partner has loaded
+    sharer: false,       // we are the one who should stream our file
+    shareWanted: true,   // user can turn streaming off
+    receiving: false,    // showing the partner's streamed movie
+    objectUrl: null,
+    subs: null,
+    pendingSync: false,
+    pendingRemote: null,
+    lastAction: 0,
+    lastSeen: 0,         // last time we heard from the partner
+    acceptedPeer: null,  // peer id we accept calls from
+    partnerCid: null,
+    cid: '',             // stable id for this tab, so a reload is recognised
+  };
+  try {
+    S.cid = sessionStorage.getItem('movienight-cid') || '';
+    if (!S.cid) sessionStorage.setItem('movienight-cid', (S.cid = randomId(12)));
+  } catch (e) { S.cid = randomId(12); }
+
+  /* ======================================================================
+   * Room id from the URL (?room=xxxx). New visitors get a fresh room.
+   * ==================================================================== */
+  const params = new URLSearchParams(location.search);
+  let room = (params.get('room') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 24);
+  if (!room) {
+    room = randomId(8);
+    params.set('room', room);
+    history.replaceState(null, '', location.pathname + '?' + params.toString());
+  }
+  const hostId = ID_PREFIX + room;
+  const inviteUrl = location.origin + location.pathname + '?room=' + room;
+
+  // Optional self-hosted PeerServer: ?signal=host:port (defaults to the free PeerJS cloud)
+  function peerOptions() {
+    const opts = { config: { iceServers: ICE_SERVERS }, debug: 0 };
+    const sig = params.get('signal');
+    if (sig) {
+      const [host, port] = sig.split(':');
+      Object.assign(opts, { host, port: Number(port) || 443, path: '/', secure: !/^(localhost|127\.)/.test(host) });
+    }
+    return opts;
+  }
+
+  function randomId(n) {
+    const abc = 'abcdefghjkmnpqrstuvwxyz23456789';
+    return Array.from(crypto.getRandomValues(new Uint8Array(n)), (x) => abc[x % abc.length]).join('');
+  }
+
+  /* ======================================================================
+   * Small UI helpers
+   * ==================================================================== */
+  function setStatus(text, kind = '') {
+    $('statusText').textContent = text;
+    $('status').dataset.kind = kind;
+  }
+  let toastTimer;
+  function toast(msg, ms = 3500) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+  }
+  function showBanner(text) { $('bannerText').textContent = text; $('banner').classList.remove('hidden'); }
+  function hideBanner() { $('banner').classList.add('hidden'); }
+  const connected = () => !!(S.conn && S.conn.open);
+  const initial = (name) => (name || '?').trim().charAt(0).toUpperCase() || '?';
+  const fmt = (t) => {
+    if (!isFinite(t) || t < 0) t = 0;
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60);
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0');
+  };
+
+  function addLine(el) {
+    const log = $('log');
+    log.append(el);
+    log.scrollTop = log.scrollHeight;
+  }
+  function addMsg(who, text, mine) {
+    const d = document.createElement('div');
+    d.className = 'msg' + (mine ? ' mine' : '');
+    const b = document.createElement('b'); b.textContent = who;
+    const s = document.createElement('span'); s.textContent = text;
+    d.append(b, s);
+    addLine(d);
+    if (!mine && $('theater').classList.contains('fs')) toast(`${who}: ${text}`);
+  }
+  function addSys(text) {
+    const d = document.createElement('div');
+    d.className = 'sys'; d.textContent = text;
+    addLine(d);
+  }
+  function floatEmoji(e) {
+    const s = document.createElement('span');
+    s.textContent = e;
+    s.style.left = (10 + Math.random() * 80) + '%';
+    $('fx').append(s);
+    setTimeout(() => s.remove(), 3000);
+  }
+
+  function updateUI() {
+    const hasMovie = !!S.source || S.receiving;
+    $('empty').classList.toggle('hidden', hasMovie);
+    $('streambar').classList.toggle('hidden', !S.receiving);
+    movie.controls = !S.receiving;
+
+    const title = S.receiving ? (S.partnerSource && S.partnerSource.name) : (S.source && S.source.name);
+    $('now').textContent = title ? 'Now playing: ' + title : '';
+
+    const badge = $('liveBadge');
+    if (S.movieOut) { badge.textContent = '● Streaming to ' + S.partnerName; badge.classList.remove('hidden'); }
+    else if (S.receiving) { badge.textContent = '● Live from ' + S.partnerName; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+
+    const canShare = connected() && S.source && S.source.kind === 'file' && !S.receiving;
+    $('shareBtn').classList.toggle('hidden', !canShare);
+    $('shareBtn').classList.toggle('on', !!S.movieOut);
+    $('shareLbl').textContent = S.movieOut ? 'Stop streaming' : 'Stream to partner';
+
+    // partner tile
+    const ph = $('partnerPh');
+    $('partnerLabel').textContent = connected() ? S.partnerName : 'Partner';
+    $('partnerAvatar').textContent = connected() ? initial(S.partnerName) : '?';
+    if (!connected()) { ph.classList.remove('hidden'); $('partnerPhText').textContent = 'Waiting for your partner…'; }
+    else if (!S.pCam || !$('partnerVideo').srcObject) {
+      ph.classList.remove('hidden');
+      $('partnerPhText').textContent = S.pCam ? 'Connecting camera…' : 'Camera off';
+    } else ph.classList.add('hidden');
+    $('partnerMicOff').classList.toggle('hidden', !connected() || S.pMic);
+
+    // own controls
+    $('micBtn').classList.toggle('off', !S.mic);
+    $('micBtn').querySelector('.slash').classList.toggle('hidden', S.mic);
+    $('camBtn').classList.toggle('off', !S.cam);
+    $('camBtn').querySelector('.slash').classList.toggle('hidden', S.cam);
+    $('myPh').classList.toggle('hidden', S.cam);
+    $('myAvatar').textContent = initial(S.name);
+  }
+
+  /* ======================================================================
+   * Camera & microphone
+   * ==================================================================== */
+  function blankVideoTrack() {
+    const c = Object.assign(document.createElement('canvas'), { width: 160, height: 120 });
+    const g = c.getContext('2d');
+    g.fillStyle = '#000'; g.fillRect(0, 0, 160, 120);
+    const t = c.captureStream(1).getVideoTracks()[0];
+    t._fake = true;
+    setInterval(() => g.fillRect(0, 0, 1, 1), 1000); // keep frames flowing
+    return t;
+  }
+  function silentAudioTrack() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const t = ctx.createMediaStreamDestination().stream.getAudioTracks()[0];
+    t._fake = true;
+    return t;
+  }
+  async function getLocalStream(wantCam) {
+    const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+    const video = { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 }, facingMode: 'user' };
+    let s = null;
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try { s = await navigator.mediaDevices.getUserMedia(wantCam ? { audio, video } : { audio }); }
+      catch (e) {
+        console.warn('getUserMedia', e);
+        if (wantCam) {
+          try { s = await navigator.mediaDevices.getUserMedia({ audio }); toast('Camera not available — joined with microphone only'); }
+          catch (e2) { console.warn(e2); }
+        }
+      }
+    }
+    if (!s) { s = new MediaStream(); toast('Camera and mic not available — you can still watch and chat'); }
+    // The call always carries one audio + one video track so it negotiates cleanly.
+    if (!s.getAudioTracks().length) s.addTrack(silentAudioTrack());
+    if (!s.getVideoTracks().length) s.addTrack(blankVideoTrack());
+    return s;
+  }
+  function sendAv() { send({ t: 'av', mic: S.mic, cam: S.cam }); }
+  function toggleMic() {
+    const t = S.local && S.local.getAudioTracks()[0];
+    if (!t || t._fake) return toast('No microphone available');
+    S.mic = !S.mic; t.enabled = S.mic;
+    sendAv(); updateUI();
+  }
+  function toggleCam() {
+    const t = S.local && S.local.getVideoTracks()[0];
+    if (!t || t._fake) return toast('No camera available');
+    S.cam = !S.cam; t.enabled = S.cam;
+    sendAv(); updateUI();
+  }
+
+  async function join(wantCam) {
+    S.name = $('nameInput').value.trim().slice(0, 24);
+    try { localStorage.setItem('movienight-name', S.name); } catch (e) { /* storage blocked */ }
+    $('joinBtn').disabled = $('joinNoCam').disabled = true;
+    $('joinBtn').textContent = 'Starting camera…';
+
+    S.local = await getLocalStream(wantCam);
+    S.cam = !S.local.getVideoTracks()[0]._fake;
+    S.mic = !S.local.getAudioTracks()[0]._fake;
+    $('myVideo').srcObject = S.local;
+    $('join').classList.add('hidden');
+    updateUI();
+
+    if (typeof window.Peer !== 'function') {
+      setStatus('Could not load the connection library — reload the page', 'err');
+      return;
+    }
+    startAsHost();
+  }
+
+  /* ======================================================================
+   * Connecting: the first person to open the link claims the room id
+   * (host); the second connects to it (guest). If the host leaves, the
+   * guest takes over the room so the other person can simply reload.
+   * ==================================================================== */
+  function wirePeer(p) {
+    p.on('call', onIncomingCall);
+    p.on('disconnected', () => {
+      // Lost the signalling server only; existing calls keep working.
+      setTimeout(() => { if (S.peer === p && !p.destroyed && p.disconnected) p.reconnect(); }, 2000);
+    });
+  }
+
+  function startAsHost() {
+    if (S.full) return;
+    if (S.attempts++ > 8) { setStatus('Could not join the room — reload to try again', 'err'); return; }
+    setStatus('Connecting…', 'wait');
+    const p = new Peer(hostId, peerOptions());
+    S.peer = p;
+    wirePeer(p);
+    p.on('open', () => {
+      S.isHost = true;
+      setStatus('Waiting for your partner — send them the link', 'wait');
+    });
+    p.on('connection', (c) => {
+      const sameTab = c.metadata && c.metadata.cid && c.metadata.cid === S.partnerCid;
+      if (connected() && !sameTab && Date.now() - S.lastSeen < 8000) {
+        c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 1000); });
+        return;
+      }
+      S.acceptedPeer = c.peer;
+      setupConn(c);
+    });
+    p.on('error', (err) => {
+      if (S.peer !== p) return;
+      if (err.type === 'unavailable-id') { p.destroy(); startAsGuest(); }
+      else onPeerError(err, p);
+    });
+  }
+
+  function startAsGuest() {
+    const p = new Peer(peerOptions());
+    S.peer = p; S.isHost = false;
+    wirePeer(p);
+    p.on('open', () => {
+      setStatus('Joining your partner…', 'wait');
+      S.acceptedPeer = hostId;
+      setupConn(p.connect(hostId, { reliable: true, metadata: { cid: S.cid } }));
+      setupCamCall(p.call(hostId, S.local, { metadata: { kind: 'cam' } }));
+    });
+    p.on('error', (err) => {
+      if (S.peer !== p) return;
+      if (err.type === 'peer-unavailable' && !connected()) {
+        // The room id is taken but nobody answers (e.g. partner just reloaded) — try to claim it.
+        p.destroy(); setTimeout(startAsHost, 1500);
+      } else onPeerError(err, p);
+    });
+  }
+
+  function onPeerError(err, p) {
+    console.warn('peer error:', err.type, err);
+    const fatal = ['network', 'server-error', 'socket-error', 'socket-closed', 'ssl-unavailable'];
+    if (err.type === 'browser-incompatible') return setStatus('This browser does not support video calls', 'err');
+    if (fatal.includes(err.type)) {
+      if (connected()) return; // already talking peer-to-peer; signalling not needed
+      setStatus('Connection server unreachable — retrying…', 'err');
+      p.destroy();
+      setTimeout(startAsHost, 3000);
+      return;
+    }
+    if (err.type !== 'peer-unavailable') toast('Connection problem: ' + err.type);
+  }
+
+  function setupConn(c) {
+    c.on('open', () => {
+      const old = S.conn;
+      S.conn = c; S.attempts = 0; S.lastSeen = Date.now();
+      if (old && old !== c) { // partner came back (e.g. reloaded) — drop the stale link
+        stopSharing(true); stopReceiving();
+        old.close();
+      }
+      setStatus('Connected', 'ok');
+      send({ t: 'hello', name: S.name, cid: S.cid, mic: S.mic, cam: S.cam });
+      send({ t: 'state', source: S.source, sharer: S.sharer, time: movie.currentTime, paused: movie.paused });
+      if (S.subs) send({ t: 'subs', text: S.subs.text, name: S.subs.name });
+      updateUI();
+    });
+    c.on('data', onData);
+    c.on('close', () => { if (S.conn === c) onPartnerLeft(); });
+    c.on('error', (e) => console.warn('data channel', e));
+  }
+
+  function send(msg) {
+    if (!connected()) return;
+    try { S.conn.send(msg); } catch (e) { console.warn('send failed', e); }
+  }
+
+  function onPartnerLeft() {
+    S.conn = null;
+    if (S.camCall) { S.camCall.close(); S.camCall = null; }
+    $('partnerVideo').srcObject = null;
+    stopSharing(true);
+    stopReceiving();
+    S.partnerSource = null;
+    hideBanner();
+    addSys(`${S.partnerName} left`);
+    S.pMic = S.pCam = true;
+    updateUI();
+    if (S.full) return;
+    if (S.isHost) {
+      setStatus('Partner left — waiting for them to come back', 'wait');
+    } else {
+      // The host left: take over the room so they can rejoin with the same link.
+      setStatus('Partner left — keeping the room open…', 'wait');
+      const p = S.peer; S.peer = null;
+      if (p) p.destroy();
+      S.attempts = 0;
+      setTimeout(startAsHost, 1500);
+    }
+  }
+
+  /* ======================================================================
+   * Media calls (camera both ways + optional movie stream)
+   * ==================================================================== */
+  // Ask for high quality stereo Opus — the default mono 32 kbps is fine for
+  // voices but sounds poor for a film soundtrack.
+  function hifiAudio(sdp) {
+    const m = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
+    if (!m) return sdp;
+    const re = new RegExp('a=fmtp:' + m[1] + ' ([^\\r\\n]*)');
+    return sdp.replace(re, (line, p) => 'a=fmtp:' + m[1] + ' ' + p.split(';')
+      .filter((x) => !/^(stereo|sprop-stereo|maxaveragebitrate|useinbandfec)=/.test(x.trim()))
+      .concat(['stereo=1', 'sprop-stereo=1', 'maxaveragebitrate=510000', 'useinbandfec=1']).join(';'));
+  }
+
+  function onIncomingCall(call) {
+    if (call.peer !== S.acceptedPeer) { call.close(); return; }
+    const kind = call.metadata && call.metadata.kind;
+    if (kind === 'movie') {
+      if (S.movieIn && S.movieIn !== call) S.movieIn.close();
+      S.movieIn = call;
+      call.answer(undefined, { sdpTransform: hifiAudio });
+      call.on('stream', startReceiving);
+      call.on('close', () => { if (S.movieIn === call) { S.movieIn = null; stopReceiving(); } });
+      return;
+    }
+    call.answer(S.local);
+    setupCamCall(call);
+  }
+
+  function setupCamCall(call) {
+    if (!call) return;
+    if (S.camCall && S.camCall !== call) S.camCall.close();
+    S.camCall = call;
+    call.on('stream', (stream) => {
+      const v = $('partnerVideo');
+      if (v.srcObject !== stream) v.srcObject = stream;
+      v.volume = Number($('partnerVol').value);
+      v.play().catch(() => {});
+      updateUI();
+    });
+    call.on('close', () => { if (S.camCall === call) { S.camCall = null; $('partnerVideo').srcObject = null; updateUI(); } });
+    call.on('error', (e) => console.warn('cam call', e));
+  }
+
+  function captureMovie() {
+    try {
+      if (movie.captureStream) return movie.captureStream();
+      if (movie.mozCaptureStream) {
+        const s = movie.mozCaptureStream();
+        // Firefox stops playing the sound locally while capturing; route it back to the speakers.
+        try {
+          S.outAudioCtx = new AudioContext();
+          S.outAudioCtx.createMediaStreamSource(s).connect(S.outAudioCtx.destination);
+        } catch (e) { console.warn(e); }
+        return s;
+      }
+    } catch (e) { console.warn('captureStream', e); }
+    return null;
+  }
+
+  // Start streaming our movie to the partner. Returns quietly if the video has
+  // no frames yet — reconcile() calls again on loadeddata / play.
+  function startSharing() {
+    if (S.movieOut || !connected() || !S.source || movie.readyState < 2) return;
+    if (!S.outCapture) S.outCapture = captureMovie();
+    const cap = S.outCapture;
+    if (!cap) {
+      S.shareWanted = false;
+      showBanner('Your browser can’t stream video. Use Chrome, Edge or Firefox on a computer — or both open the same file.');
+      updateUI();
+      return;
+    }
+    if (!cap.getVideoTracks().length && !cap.getAudioTracks().length) return;
+    cap.getVideoTracks().forEach((t) => { try { t.contentHint = 'motion'; } catch (e) { /* unsupported */ } });
+    cap.getAudioTracks().forEach((t) => { try { t.contentHint = 'music'; } catch (e) { /* unsupported */ } });
+
+    const call = S.peer.call(S.conn.peer, cap, { metadata: { kind: 'movie' }, sdpTransform: hifiAudio });
+    if (!call) return;
+    S.movieOut = call;
+    call.on('close', () => { if (S.movieOut === call) { S.movieOut = null; updateUI(); } });
+    call.on('error', (e) => console.warn('movie call', e));
+    // Raise the video bitrate cap once the connection is negotiated.
+    const boost = () => {
+      const pc = call.peerConnection;
+      if (!pc) return;
+      pc.getSenders().forEach((sender) => {
+        if (!sender.track || sender.track.kind !== 'video') return;
+        const p = sender.getParameters();
+        if (!p.encodings || !p.encodings.length) return;
+        p.encodings[0].maxBitrate = MOVIE_BITRATE;
+        p.degradationPreference = 'maintain-resolution';
+        sender.setParameters(p).catch((e) => console.warn('setParameters', e));
+      });
+    };
+    setTimeout(boost, 1500);
+    setTimeout(boost, 5000);
+    send({ t: 'stream-on' });
+    sendTick();
+    addSys(`Streaming “${S.source.name}” to ${S.partnerName}`);
+    updateUI();
+  }
+
+  function stopSharing(silent) {
+    if (S.movieOut) {
+      const c = S.movieOut; S.movieOut = null;
+      c.close();
+      if (!silent) send({ t: 'stream-off' });
+    }
+    updateUI();
+  }
+
+  function dropCapture() {
+    stopSharing(true);
+    if (S.outCapture) { S.outCapture.getTracks().forEach((t) => t.stop()); S.outCapture = null; }
+    if (S.outAudioCtx) { S.outAudioCtx.close().catch(() => {}); S.outAudioCtx = null; }
+  }
+
+  // Decide automatically whether we should be streaming.
+  function reconcile() {
+    const should = connected() && S.sharer && S.shareWanted && !S.receiving &&
+      S.source && S.source.kind === 'file' && !sameSource(S.partnerSource);
+    if (should && !S.movieOut) startSharing();
+    else if (!should && S.movieOut) stopSharing();
+    updateUI();
+  }
+
+  function startReceiving(stream) {
+    S.receiving = true;
+    hideBanner();
+    movie.srcObject = stream;
+    movie.volume = Number($('sbVol').value);
+    movie.play().catch((e) => { if (e.name === 'NotAllowedError') $('tapPlay').classList.remove('hidden'); });
+    $('streambar').classList.add('show');
+    setTimeout(() => $('streambar').classList.remove('show'), 4000);
+    updateUI();
+  }
+
+  function stopReceiving() {
+    if (!S.receiving) return;
+    S.receiving = false;
+    movie.srcObject = null; // falls back to our own file, if we opened one
+    $('tapPlay').classList.add('hidden');
+    updateUI();
+  }
+
+  /* ======================================================================
+   * Loading a movie
+   * ==================================================================== */
+  function sameSource(a) {
+    const b = S.source;
+    if (!a || !b || a.kind !== b.kind) return false;
+    if (a.kind === 'url') return a.url === b.url;
+    return a.name === b.name || (a.size && a.size === b.size);
+  }
+
+  function loadFile(file) {
+    if (!file) return;
+    if (/\.(srt|vtt)$/i.test(file.name)) return readSubs(file);
+    if (S.objectUrl) URL.revokeObjectURL(S.objectUrl);
+    S.objectUrl = URL.createObjectURL(file);
+    setSource({ kind: 'file', name: file.name, size: file.size }, S.objectUrl, false);
+  }
+
+  function loadUrl(url, fromPartner) {
+    let name = url;
+    try { name = decodeURIComponent(new URL(url).pathname.split('/').pop()) || url; } catch (e) { /* keep url */ }
+    setSource({ kind: 'url', url, name }, url, fromPartner);
+  }
+
+  function setSource(src, url, fromPartner) {
+    dropCapture();
+    S.source = src;
+    S.pendingSync = true;
+    S.sharer = !fromPartner;
+    S.shareWanted = true;
+    // Opening our own movie means we watch that instead of the partner's stream.
+    if (S.receiving && !fromPartner) stopReceiving();
+    movie.src = url;
+    if (!fromPartner) send({ t: 'source', source: src });
+    if (sameSource(S.partnerSource) || !S.partnerSource) hideBanner();
+    reconcile();
+  }
+
+  /* ======================================================================
+   * Keeping playback in sync (when both have the movie, or a link)
+   * ==================================================================== */
+  // Ignore the events our own programmatic play/pause/seek cause.
+  const muteUntil = { play: 0, pause: 0, seeked: 0 };
+  const mute = (k) => { muteUntil[k] = Date.now() + 1000; };
+  const isMuted = (k) => { if (Date.now() < muteUntil[k]) { muteUntil[k] = 0; return true; } return false; };
+
+  function playSafely() {
+    return movie.play().catch((e) => {
+      if (e.name === 'NotAllowedError') $('tapPlay').classList.remove('hidden');
+    });
+  }
+
+  function applyRemote(m) {
+    if (S.receiving) return;
+    if (movie.readyState < 1) { S.pendingRemote = m; return; }
+    S.lastAction = Date.now();
+    if (typeof m.time === 'number' && Math.abs(movie.currentTime - m.time) > 0.4) {
+      mute('seeked'); movie.currentTime = m.time;
+    }
+    if (m.t === 'play' && movie.paused) { mute('play'); playSafely(); }
+    if (m.t === 'pause' && !movie.paused) { mute('pause'); movie.pause(); }
+  }
+
+  function onLocal(type) {
+    if (S.receiving || !S.source) return;
+    if (isMuted(type === 'seek' ? 'seeked' : type)) return;
+    S.lastAction = Date.now();
+    send({ t: type, time: movie.currentTime, paused: movie.paused });
+    if (S.movieOut) sendTick();
+  }
+
+  function sendTick() {
+    if (!connected() || S.receiving || !S.source || movie.readyState < 1) return;
+    send({ t: 'tick', time: movie.currentTime, paused: movie.paused, duration: movie.duration || 0 });
+  }
+
+  function onTick(m) {
+    if (S.receiving) return updateStreambar(m);
+    // The host's clock wins: gently correct drift while both are playing.
+    if (S.isHost || !sameSource(S.partnerSource) || m.paused || movie.paused || movie.readyState < 2) return;
+    if (Date.now() - S.lastAction < 3000) return;
+    if (Math.abs(movie.currentTime - m.time) > 1.2) { mute('seeked'); movie.currentTime = m.time + 0.15; }
+  }
+
+  // Ticks: always while streaming (drives the partner's progress bar),
+  // and from the host when both play their own copy.
+  setInterval(() => { if (S.movieOut || S.isHost) sendTick(); }, 1000);
+
+  // Keep-alive: notice quickly when the partner's connection silently dies.
+  setInterval(() => {
+    if (!connected()) return;
+    send({ t: 'ping' });
+    if (Date.now() - S.lastSeen > 15000) S.conn.close();
+  }, 2000);
+
+  /* streambar: the partner controls our stream, we control theirs */
+  let sbDragging = false;
+  let sbState = { paused: true, time: 0, duration: 0 };
+  function updateStreambar(m) {
+    if (typeof m.paused === 'boolean') sbState.paused = m.paused;
+    if (typeof m.time === 'number') sbState.time = m.time;
+    if (m.duration) sbState.duration = m.duration;
+    const seek = $('sbSeek');
+    seek.max = String(sbState.duration || 0);
+    if (!sbDragging) seek.value = String(sbState.time);
+    $('sbTime').textContent = fmt(sbDragging ? Number(seek.value) : sbState.time) + ' / ' + fmt(sbState.duration);
+    $('sbPlayIc').innerHTML = sbState.paused
+      ? '<polygon points="6 3 20 12 6 21 6 3"/>'
+      : '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  }
+
+  function onCmd(m) {
+    if (!S.movieOut) return;
+    S.lastAction = Date.now();
+    if (m.a === 'toggle') { if (movie.paused) movie.play().catch(() => {}); else movie.pause(); }
+    if (m.a === 'seek' && typeof m.time === 'number') movie.currentTime = m.time;
+  }
+
+  /* ======================================================================
+   * Messages from the partner
+   * ==================================================================== */
+  function onData(m) {
+    if (!m || typeof m !== 'object') return;
+    S.lastSeen = Date.now();
+    switch (m.t) {
+      case 'ping': return;
+      case 'hello':
+        S.partnerName = String(m.name || '').slice(0, 24) || 'Partner';
+        S.partnerCid = typeof m.cid === 'string' ? m.cid : null;
+        S.pMic = m.mic !== false; S.pCam = m.cam !== false;
+        addSys(`${S.partnerName} joined 👋`);
+        break;
+      case 'av':
+        S.pMic = m.mic !== false; S.pCam = m.cam !== false;
+        break;
+      case 'full':
+        S.full = true;
+        setStatus('This room already has two people', 'err');
+        if (S.peer) S.peer.destroy();
+        break;
+      case 'bye':
+        if (S.conn) S.conn.close();
+        break;
+      case 'state':
+        onPartnerSource(m.source, true, m.sharer);
+        if (!S.isHost && m.source && sameSource(m.source)) applyRemote({ t: m.paused ? 'pause' : 'play', time: m.time });
+        break;
+      case 'source':
+        onPartnerSource(m.source, false);
+        break;
+      case 'play': case 'pause': case 'seek':
+        if (S.receiving) updateStreambar(m);
+        else if (sameSource(S.partnerSource)) applyRemote(m);
+        break;
+      case 'tick': onTick(m); break;
+      case 'sync-req':
+        if (S.source && !S.receiving) send({ t: 'sync', time: movie.currentTime, paused: movie.paused });
+        break;
+      case 'sync':
+        if (sameSource(S.partnerSource)) applyRemote({ t: m.paused ? 'pause' : 'play', time: m.time });
+        break;
+      case 'cmd': onCmd(m); break;
+      case 'stream-on': hideBanner(); break;
+      case 'stream-off': stopReceiving(); break;
+      case 'subs':
+        if (typeof m.text === 'string') applySubs(m.text, m.name, true);
+        break;
+      case 'chat':
+        if (typeof m.text === 'string') addMsg(S.partnerName, m.text.slice(0, 500), false);
+        break;
+      case 'react':
+        if (typeof m.e === 'string' && m.e.length <= 8) floatEmoji(m.e);
+        break;
+    }
+    updateUI();
+  }
+
+  function onPartnerSource(src, onConnect, partnerIsSharer) {
+    S.partnerSource = src || null;
+    if (!src) { reconcile(); return; }
+    if (onConnect && partnerIsSharer && S.sharer && !sameSource(src) && !S.isHost) {
+      S.sharer = false; // both opened different films before connecting: the host's wins
+    } else if (!onConnect && !sameSource(src)) {
+      S.sharer = false; // partner picked a new movie — they stream it now
+    }
+    if (src.kind === 'url' && !sameSource(src)) {
+      loadUrl(src.url, true);
+    } else if (src.kind === 'file' && sameSource(src)) {
+      hideBanner();
+      addSys(`You both have “${src.name}” — playing your own copies in sync (best quality)`);
+      if (S.movieIn) { S.movieIn.close(); S.movieIn = null; }
+      stopReceiving();
+    }
+    reconcile();
+  }
+
+  /* ======================================================================
+   * Subtitles (.srt / .vtt), shared with the partner
+   * ==================================================================== */
+  async function readSubs(file) {
+    const buf = await file.arrayBuffer();
+    let text;
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+    catch (e) { text = new TextDecoder('windows-1256').decode(buf); } // common for Persian/Arabic .srt files
+    applySubs(text, file.name, false);
+  }
+
+  function applySubs(text, name, fromPartner) {
+    text = text.replace(/^﻿/, '').replace(/\r/g, '');
+    const vtt = /^WEBVTT/.test(text) ? text : 'WEBVTT\n\n' + text.replace(/(\d{1,2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+    movie.querySelectorAll('track').forEach((t) => { URL.revokeObjectURL(t.src); t.remove(); });
+    const tr = document.createElement('track');
+    Object.assign(tr, { kind: 'subtitles', label: name || 'Subtitles', srclang: 'und', default: true });
+    tr.src = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }));
+    movie.append(tr);
+    setTimeout(() => { if (tr.track) tr.track.mode = 'showing'; }, 50);
+    S.subs = { text, name };
+    if (fromPartner) addSys(`${S.partnerName} added subtitles`);
+    else {
+      send({ t: 'subs', text, name });
+      toast(connected() ? 'Subtitles added for both of you' : 'Subtitles added');
+    }
+  }
+
+  /* ======================================================================
+   * Wiring up the page
+   * ==================================================================== */
+  $('roomLink').textContent = inviteUrl;
+  try { $('nameInput').value = localStorage.getItem('movienight-name') || ''; } catch (e) { /* storage blocked */ }
+
+  async function copyInvite() {
+    try {
+      if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+        await navigator.share({ title: 'Movie night 🍿', text: 'Come watch a movie with me', url: inviteUrl });
+        return;
+      }
+      await navigator.clipboard.writeText(inviteUrl);
+      toast('Invite link copied — send it to your partner');
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+      window.prompt('Copy this link and send it to your partner:', inviteUrl);
+    }
+  }
+  $('inviteBtn').onclick = copyInvite;
+  $('joinCopy').onclick = copyInvite;
+  $('joinBtn').onclick = () => join(true);
+  $('joinNoCam').onclick = () => join(false);
+  $('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(true); });
+
+  document.querySelectorAll('[data-act="open"]').forEach((b) => (b.onclick = () => $('fileInput').click()));
+  document.querySelectorAll('[data-act="link"]').forEach((b) => (b.onclick = () => { $('linkInput').value = ''; $('linkDlg').showModal(); }));
+  document.querySelectorAll('[data-act="subs"]').forEach((b) => (b.onclick = () => $('subsInput').click()));
+  $('fileInput').onchange = (e) => { loadFile(e.target.files[0]); e.target.value = ''; };
+  $('subsInput').onchange = (e) => { if (e.target.files[0]) readSubs(e.target.files[0]); e.target.value = ''; };
+  $('linkDlg').addEventListener('close', () => {
+    if ($('linkDlg').returnValue === 'ok' && $('linkInput').value) loadUrl($('linkInput').value.trim(), false);
+  });
+
+  $('shareBtn').onclick = () => {
+    S.shareWanted = !S.movieOut;
+    if (S.shareWanted) S.sharer = true;
+    reconcile();
+    if (S.shareWanted && !S.movieOut) toast('Press play — the stream starts as soon as the video has a picture');
+  };
+  $('bannerClose').onclick = hideBanner;
+  $('tapPlay').onclick = () => { $('tapPlay').classList.add('hidden'); movie.play().catch(() => {}); };
+
+  $('micBtn').onclick = toggleMic;
+  $('camBtn').onclick = toggleCam;
+  $('partnerVol').oninput = (e) => { $('partnerVideo').volume = Number(e.target.value); };
+
+  // streambar (we're watching the partner's stream)
+  $('sbPlay').onclick = () => {
+    send({ t: 'cmd', a: 'toggle' });
+    if (movie.paused) movie.play().catch(() => {});
+  };
+  $('sbSeek').addEventListener('input', () => { sbDragging = true; updateStreambar({}); });
+  $('sbSeek').addEventListener('change', (e) => {
+    sbDragging = false;
+    send({ t: 'cmd', a: 'seek', time: Number(e.target.value) });
+  });
+  $('sbVol').oninput = (e) => { movie.volume = Number(e.target.value); };
+
+  // movie element events -> partner
+  movie.addEventListener('play', () => onLocal('play'));
+  movie.addEventListener('pause', () => onLocal('pause'));
+  movie.addEventListener('seeked', () => onLocal('seek'));
+  movie.addEventListener('loadedmetadata', () => {
+    if (S.receiving) return;
+    if (S.pendingSync) {
+      S.pendingSync = false;
+      if (sameSource(S.partnerSource)) send({ t: 'sync-req' });
+    }
+    if (S.pendingRemote) { const m = S.pendingRemote; S.pendingRemote = null; applyRemote(m); }
+  });
+  movie.addEventListener('loadeddata', reconcile);
+  movie.addEventListener('playing', reconcile);
+  movie.addEventListener('error', () => {
+    if (S.receiving || !movie.error || !S.source) return;
+    showBanner('This video format can’t be played in your browser. Try an MP4 (H.264 + AAC) or WebM file — Chrome and Edge also play most MKV files.');
+  });
+
+  // chat & reactions
+  $('chatForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('chatInput').value.trim();
+    if (!text) return;
+    addMsg(S.name || 'You', text, true);
+    send({ t: 'chat', text });
+    $('chatInput').value = '';
+  });
+  $('reacts').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-e]');
+    if (!b) return;
+    floatEmoji(b.dataset.e);
+    send({ t: 'react', e: b.dataset.e });
+  });
+
+  // drag & drop
+  const stage = $('stage');
+  stage.addEventListener('dragover', (e) => { e.preventDefault(); stage.classList.add('drag'); });
+  stage.addEventListener('dragleave', () => stage.classList.remove('drag'));
+  stage.addEventListener('drop', (e) => {
+    e.preventDefault(); stage.classList.remove('drag');
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+
+  // fullscreen: the whole theater goes fullscreen so the cameras float over the film
+  const theater = $('theater');
+  $('fsBtn').onclick = () => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      return;
+    }
+    const req = theater.requestFullscreen || theater.webkitRequestFullscreen;
+    if (req) {
+      const r = req.call(theater);
+      if (r && r.catch) r.catch(() => {});
+    } else if (movie.webkitEnterFullscreen) movie.webkitEnterFullscreen(); // iPhone
+  };
+  const onFs = () => theater.classList.toggle('fs', !!(document.fullscreenElement || document.webkitFullscreenElement));
+  document.addEventListener('fullscreenchange', onFs);
+  document.addEventListener('webkitfullscreenchange', onFs);
+  $('camsBtn').onclick = () => {
+    theater.classList.toggle('cams-hidden');
+    toast(theater.classList.contains('cams-hidden') ? 'Cameras hidden in fullscreen' : 'Cameras shown in fullscreen');
+  };
+
+  // tell the partner right away when we close the tab
+  window.addEventListener('pagehide', () => {
+    send({ t: 'bye' });
+    if (S.peer) S.peer.destroy();
+  });
+
+  updateUI();
+  if (params.has('debug')) window.movieNight = S;
+})();
+</script>
+</body>
+</html>

@@ -9,6 +9,10 @@ const nextConfig = {
       },
     ],
   },
+  // Movie night: a standalone page (public/watch.html) served at /watch
+  async rewrites() {
+    return [{ source: "/watch", destination: "/watch.html" }];
+  },
 };
 
 export default nextConfig;

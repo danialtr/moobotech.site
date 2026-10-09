@@ -82,6 +82,27 @@ lib/
   menu.ts           # داده‌های منو (محتوای فارسی)
 ```
 
+## 🍿 Movie night — `/watch`
+
+A standalone page for watching a film together with camera + voice chat:
+`public/watch.html`, served at **`/watch`** (rewrite in `next.config.mjs`).
+
+1. Open `/watch` — it creates a private room link (`/watch?room=…`). Send it to your partner.
+2. Both join with camera & mic.
+3. One of you opens the movie file from their computer — it is **streamed directly
+   to the other person** (they don't need a copy). Either of you can pause / seek.
+4. If both of you have the same file, open it on both sides and playback switches to
+   synced local copies (best quality).
+
+Also: subtitles (.srt / .vtt, shared with the partner), chat, emoji reactions and a
+fullscreen mode where the cameras float over the movie.
+
+How it works: WebRTC peer-to-peer via [PeerJS](https://peerjs.com) (MIT, vendored in
+`public/vendor/`). The free PeerJS cloud server is only used to introduce the two
+browsers; video, audio and the film go directly between them and are never uploaded.
+Streaming the film needs Chrome, Edge or Firefox on a computer. On very strict networks
+a TURN server may be needed — add it to `ICE_SERVERS` at the top of the script.
+
 ---
 
 ساخته‌شده با ☕ و عشق.
