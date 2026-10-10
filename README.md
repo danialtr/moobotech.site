@@ -94,12 +94,17 @@ A standalone page for watching a film together with camera + voice chat:
 4. If both of you have the same file, open it on both sides and playback switches to
    synced local copies (best quality).
 
-Also: subtitles (.srt / .vtt, shared with the partner), chat, emoji reactions and a
-fullscreen mode where the cameras float over the movie.
+Also: **Send movie to partner** (copies the file to them in the background, then both play
+their own copy in sync — no stream delay), subtitles (.srt / .vtt, shared with the partner),
+chat, emoji reactions, a fullscreen mode where the cameras float over the movie, and a ⚙
+panel to pick microphone / camera / speaker with a live mic level meter.
 
 How it works: WebRTC peer-to-peer via [PeerJS](https://peerjs.com) (MIT, vendored in
 `public/vendor/`). The free PeerJS cloud server is only used to introduce the two
 browsers; video, audio and the film go directly between them and are never uploaded.
+Once connected, the movie stream and file transfer run over that existing connection
+(renegotiated over the page's own data channel), so they keep working even if the
+PeerJS server drops.
 Streaming the film needs Chrome, Edge or Firefox on a computer. On very strict networks
 a TURN server may be needed — add it to `ICE_SERVERS` at the top of the script.
 

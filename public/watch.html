@@ -53,6 +53,13 @@
   .btn.on { background: #2f1d28; border-color: var(--accent); color: #ffd0da; }
   .icon-btn { width: 42px; height: 42px; padding: 0; border-radius: 50%; }
   .icon-btn.off { background: var(--err); border-color: var(--err); color: #fff; }
+  #micBtn:not(.off) { box-shadow: 0 0 0 calc(var(--lvl, 0) * 7px) rgba(56, 217, 150, .55); transition: box-shadow .08s; }
+  .tile.partner { transition: border-color .15s, box-shadow .15s; }
+  .tile.partner.speaking { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok); }
+  .meter { height: 8px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; margin: 8px 0 4px; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .08s; }
+  dialog label { display: block; font-size: 13px; color: var(--muted); margin-top: 12px; }
+  dialog select { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
 
   /* ---------- header ---------- */
   .top {
@@ -299,7 +306,7 @@
   <aside class="side">
     <div class="cams">
       <div class="partner-wrap">
-        <div class="tile partner">
+        <div class="tile partner" id="partnerTile">
           <video id="partnerVideo" autoplay playsinline></video>
           <div class="ph" id="partnerPh"><div><div class="avatar" id="partnerAvatar">?</div><span id="partnerPhText">Waiting for your partner…</span></div></div>
           <div class="label"><span id="partnerLabel">Partner</span><svg class="hidden" id="partnerMicOff" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div>
@@ -317,6 +324,9 @@
       </button>
       <button class="btn icon-btn" id="camBtn" title="Turn camera on / off">
         <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/><line class="slash hidden" x1="2" y1="2" x2="22" y2="22"/></svg>
+      </button>
+      <button class="btn icon-btn" id="devBtn" title="Microphone, camera &amp; speaker settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
       <label class="vol-wrap" title="Partner's voice volume">
         <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
@@ -366,6 +376,24 @@
   </div>
 </div>
 
+<dialog id="devDlg">
+  <form method="dialog">
+    <h3>Microphone &amp; camera</h3>
+    <label>Microphone
+      <select id="micSel"></select>
+    </label>
+    <div class="meter"><i id="dlgMeter"></i></div>
+    <p class="tiny" id="micHint">Say something — the green bar should move. If it doesn’t, pick another microphone.</p>
+    <label>Camera
+      <select id="camSel"></select>
+    </label>
+    <label id="spkWrap">Speaker / headphones
+      <select id="spkSel"></select>
+    </label>
+    <div class="row"><button class="btn primary" value="ok">Done</button></div>
+  </form>
+</dialog>
+
 <dialog id="linkDlg">
   <form method="dialog">
     <h3>Paste a direct video link</h3>
@@ -400,6 +428,7 @@
   ];
   const ID_PREFIX = 'moobotech-movienight-';
   const MOVIE_BITRATE = 8_000_000; // bits/s for the streamed film (WebRTC adapts down if needed)
+  const VERSION = 2;               // bump when the messages between the two pages change
 
   const $ = (id) => document.getElementById(id);
   const movie = $('movie');
@@ -408,8 +437,12 @@
     peer: null,          // our PeerJS peer
     conn: null,          // data channel to the partner
     camCall: null,       // camera / mic call
-    movieOut: null,      // call carrying our movie to the partner
-    movieIn: null,       // call carrying the partner's movie to us
+    movieOut: false,     // we are streaming our movie to the partner
+    movieTx: null,       // {pc, video, audio} senders for the movie on the link
+    remoteMovie: null,   // the partner's movie stream (when they share)
+    partnerStreaming: false,
+    negotiating: false,
+    needNegotiation: false,
     outCapture: null,    // MediaStream captured from <video>
     outAudioCtx: null,   // Firefox: keeps local movie sound audible while capturing
     local: null,         // our camera + mic stream
@@ -457,7 +490,7 @@
 
   // Optional self-hosted PeerServer: ?signal=host:port (defaults to the free PeerJS cloud)
   function peerOptions() {
-    const opts = { config: { iceServers: ICE_SERVERS }, debug: 0 };
+    const opts = { config: { iceServers: ICE_SERVERS, bundlePolicy: 'max-bundle' }, debug: 0 };
     const sig = params.get('signal');
     if (sig) {
       const [host, port] = sig.split(':');
@@ -581,9 +614,18 @@
     t._fake = true;
     return t;
   }
+  const pref = (k) => { try { return localStorage.getItem('movienight-' + k) || ''; } catch (e) { return ''; } };
+  const savePref = (k, v) => { try { localStorage.setItem('movienight-' + k, v); } catch (e) { /* storage blocked */ } };
+  const audioConstraints = (id) => Object.assign(
+    { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    id ? { deviceId: { ideal: id } } : {});
+  const videoConstraints = (id) => Object.assign(
+    { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+    id ? { deviceId: { ideal: id } } : { facingMode: 'user' });
+
   async function getLocalStream(wantCam) {
-    const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
-    const video = { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 }, facingMode: 'user' };
+    const audio = audioConstraints(pref('mic'));
+    const video = videoConstraints(pref('cam'));
     let s = null;
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try { s = await navigator.mediaDevices.getUserMedia(wantCam ? { audio, video } : { audio }); }
@@ -602,9 +644,101 @@
     return s;
   }
   function sendAv() { send({ t: 'av', mic: S.mic, cam: S.cam }); }
+
+  /* ---- level meters: ring around the mic button, glow on the partner tile ---- */
+  let meterCtx = null;
+  const meters = {};
+  function attachMeter(key, stream) {
+    try {
+      if (meters[key]) { meters[key].src.disconnect(); delete meters[key]; }
+      const t = stream && stream.getAudioTracks()[0];
+      if (!t) return;
+      if (!meterCtx) meterCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (meterCtx.state === 'suspended') meterCtx.resume().catch(() => {});
+      const src = meterCtx.createMediaStreamSource(new MediaStream([t]));
+      const an = meterCtx.createAnalyser();
+      an.fftSize = 2048;
+      src.connect(an);
+      meters[key] = { src, an, buf: new Uint8Array(an.fftSize) };
+    } catch (e) { console.warn('meter', e); }
+  }
+  // Peak level with a gentle fall-off, 0..1.
+  function level(key) {
+    const m = meters[key];
+    if (!m) return 0;
+    m.an.getByteTimeDomainData(m.buf);
+    let peak = 0;
+    for (let i = 0; i < m.buf.length; i++) peak = Math.max(peak, Math.abs(m.buf[i] - 128) / 128);
+    m.lvl = Math.max(Math.min(1, peak * 2.5), (m.lvl || 0) * 0.8);
+    return m.lvl;
+  }
+  setInterval(() => {
+    const me = S.mic ? level('me') : 0;
+    $('micBtn').style.setProperty('--lvl', me.toFixed(2));
+    if ($('devDlg').open) $('dlgMeter').style.width = Math.round(me * 100) + '%';
+    $('partnerTile').classList.toggle('speaking', connected() && S.pMic && level('partner') > 0.15);
+  }, 100);
+
+  /* ---- choosing microphone / camera / speaker ---- */
+  async function fillDevices() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    const list = await navigator.mediaDevices.enumerateDevices();
+    const fill = (sel, kind, current) => {
+      sel.innerHTML = '';
+      list.filter((d) => d.kind === kind && d.deviceId).forEach((d, i) => {
+        const o = document.createElement('option');
+        o.value = d.deviceId;
+        o.textContent = d.label || `${kind === 'audioinput' ? 'Microphone' : kind === 'videoinput' ? 'Camera' : 'Speaker'} ${i + 1}`;
+        o.selected = d.deviceId === current;
+        sel.append(o);
+      });
+      if (!sel.options.length) { const o = document.createElement('option'); o.textContent = 'None found'; o.value = ''; sel.append(o); }
+    };
+    const cur = (k) => { const t = S.local && (k === 'audio' ? S.local.getAudioTracks()[0] : S.local.getVideoTracks()[0]); return t && !t._fake && t.getSettings ? t.getSettings().deviceId : ''; };
+    fill($('micSel'), 'audioinput', cur('audio'));
+    fill($('camSel'), 'videoinput', cur('video'));
+    const canSink = 'setSinkId' in HTMLMediaElement.prototype;
+    $('spkWrap').classList.toggle('hidden', !canSink);
+    if (canSink) fill($('spkSel'), 'audiooutput', pref('spk') || 'default');
+  }
+
+  async function switchDevice(kind, deviceId) {
+    if (!deviceId || !S.local) return;
+    let track;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia(kind === 'audio'
+        ? { audio: Object.assign(audioConstraints(), { deviceId: { exact: deviceId } }) }
+        : { video: Object.assign(videoConstraints(), { deviceId: { exact: deviceId } }) });
+      track = kind === 'audio' ? s.getAudioTracks()[0] : s.getVideoTracks()[0];
+    } catch (e) {
+      console.warn('switch device', e);
+      toast('Could not use that device — is another app using it?');
+      return;
+    }
+    const old = kind === 'audio' ? S.local.getAudioTracks()[0] : S.local.getVideoTracks()[0];
+    // Replace the track inside the running call — no reconnect needed.
+    const pc = S.camCall && S.camCall.peerConnection;
+    if (pc) {
+      const tr = pc.getTransceivers().find((t) => t.sender.track === old) ||
+        pc.getTransceivers().find((t) => t.receiver.track && t.receiver.track.kind === kind);
+      if (tr) await tr.sender.replaceTrack(track).catch((e) => console.warn('replaceTrack', e));
+    }
+    if (old) { S.local.removeTrack(old); old.stop(); }
+    S.local.addTrack(track);
+    if (kind === 'audio') { S.mic = true; attachMeter('me', S.local); savePref('mic', deviceId); }
+    else { S.cam = true; savePref('cam', deviceId); }
+    $('myVideo').srcObject = S.local;
+    sendAv();
+    updateUI();
+  }
+
+  function setSpeaker(deviceId) {
+    savePref('spk', deviceId);
+    [$('partnerVideo'), movie].forEach((el) => { if (el.setSinkId) el.setSinkId(deviceId).catch((e) => console.warn('setSinkId', e)); });
+  }
   function toggleMic() {
     const t = S.local && S.local.getAudioTracks()[0];
-    if (!t || t._fake) return toast('No microphone available');
+    if (!t || t._fake) return toast('No microphone found — pick one in the ⚙ settings');
     S.mic = !S.mic; t.enabled = S.mic;
     sendAv(); updateUI();
   }
@@ -625,6 +759,8 @@
     S.cam = !S.local.getVideoTracks()[0]._fake;
     S.mic = !S.local.getAudioTracks()[0]._fake;
     $('myVideo').srcObject = S.local;
+    attachMeter('me', S.local);
+    if (pref('spk')) setSpeaker(pref('spk'));
     $('join').classList.add('hidden');
     updateUI();
 
@@ -642,11 +778,6 @@
    * ==================================================================== */
   function wirePeer(p) {
     p.on('call', onIncomingCall);
-    p.on('connection', (c) => {
-      if (!c.metadata || c.metadata.kind !== 'file') return;
-      if (c.peer === S.acceptedPeer && connected()) receiveFile(c);
-      else c.close();
-    });
     p.on('disconnected', () => {
       // Lost the signalling server only; existing calls keep working.
       setTimeout(() => { if (S.peer === p && !p.destroyed && p.disconnected) p.reconnect(); }, 2000);
@@ -665,7 +796,6 @@
       setStatus('Waiting for your partner — send them the link', 'wait');
     });
     p.on('connection', (c) => {
-      if (c.metadata && c.metadata.kind === 'file') return; // handled in wirePeer
       const sameTab = c.metadata && c.metadata.cid && c.metadata.cid === S.partnerCid;
       if (connected() && !sameTab && Date.now() - S.lastSeen < 8000) {
         c.on('open', () => { c.send({ t: 'full' }); setTimeout(() => c.close(), 1000); });
@@ -717,13 +847,15 @@
   function setupConn(c) {
     c.on('open', () => {
       const old = S.conn;
-      S.conn = c; S.attempts = 0; S.lastSeen = Date.now();
       if (old && old !== c) { // partner came back (e.g. reloaded) — drop the stale link
-        stopSharing(true); stopReceiving();
-        old.close();
+        stopSharing(true); stopReceiving(); cancelTransfers();
       }
+      S.conn = c; S.attempts = 0; S.lastSeen = Date.now();
+      resetLink();
+      watchLinkTracks(c);
+      if (old && old !== c) old.close();
       setStatus('Connected', 'ok');
-      send({ t: 'hello', name: S.name, cid: S.cid, mic: S.mic, cam: S.cam });
+      send({ t: 'hello', v: VERSION, name: S.name, cid: S.cid, mic: S.mic, cam: S.cam });
       send({ t: 'state', source: S.source, sharer: S.sharer, time: movie.currentTime, paused: movie.paused });
       if (S.subs) send({ t: 'subs', text: S.subs.text, name: S.subs.name });
       updateUI();
@@ -739,12 +871,14 @@
   }
 
   function onPartnerLeft() {
-    S.conn = null;
-    if (S.camCall) { S.camCall.close(); S.camCall = null; }
-    $('partnerVideo').srcObject = null;
     stopSharing(true);
     stopReceiving();
     cancelTransfers();
+    S.conn = null;
+    resetLink();
+    if (S.camCall) { S.camCall.close(); S.camCall = null; }
+    $('partnerVideo').srcObject = null;
+    attachMeter('partner', null);
     S.partnerSource = null;
     hideBanner();
     addSys(`${S.partnerName} left`);
@@ -778,16 +912,8 @@
   }
 
   function onIncomingCall(call) {
-    if (call.peer !== S.acceptedPeer) { call.close(); return; }
     const kind = call.metadata && call.metadata.kind;
-    if (kind === 'movie') {
-      if (S.movieIn && S.movieIn !== call) S.movieIn.close();
-      S.movieIn = call;
-      call.answer(undefined, { sdpTransform: hifiAudio });
-      call.on('stream', startReceiving);
-      call.on('close', () => { if (S.movieIn === call) { S.movieIn = null; stopReceiving(); } });
-      return;
-    }
+    if (call.peer !== S.acceptedPeer || kind !== 'cam') { call.close(); return; }
     call.answer(S.local);
     setupCamCall(call);
   }
@@ -801,10 +927,89 @@
       if (v.srcObject !== stream) v.srcObject = stream;
       v.volume = Number($('partnerVol').value);
       v.play().catch(() => {});
+      attachMeter('partner', stream);
       updateUI();
     });
     call.on('close', () => { if (S.camCall === call) { S.camCall = null; $('partnerVideo').srcObject = null; updateUI(); } });
     call.on('error', (e) => console.warn('cam call', e));
+  }
+
+  /* The film is streamed over the peer connection we already have with the
+   * partner (the one carrying chat & sync). Adding the movie tracks needs a
+   * new offer/answer, which we exchange over our own data channel — so once
+   * you are connected nothing depends on the signalling server any more. */
+  const linkPc = () => (S.conn && S.conn.open && S.conn.peerConnection) || null;
+
+  function resetLink() {
+    S.movieOut = false;
+    S.movieTx = null;
+    S.remoteMovie = null;
+    S.partnerStreaming = false;
+    S.negotiating = false;
+    S.needNegotiation = false;
+  }
+
+  async function negotiate() {
+    const pc = linkPc();
+    if (!pc) return;
+    if (S.negotiating || pc.signalingState !== 'stable') { S.needNegotiation = true; return; }
+    S.negotiating = true;
+    S.needNegotiation = false;
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription({ type: 'offer', sdp: hifiAudio(offer.sdp) });
+      send({ t: 'sdp', d: { type: 'offer', sdp: pc.localDescription.sdp } });
+    } catch (e) {
+      console.warn('negotiate', e);
+      S.negotiating = false;
+    }
+  }
+
+  async function onSdp(d) {
+    const pc = linkPc();
+    if (!pc || !d || typeof d.sdp !== 'string') return;
+    try {
+      if (d.type === 'offer') {
+        if (pc.signalingState === 'have-local-offer') {
+          if (S.isHost) return; // both offered at once: the host's offer wins, the guest retries after
+          await pc.setLocalDescription({ type: 'rollback' });
+          S.negotiating = false;
+          S.needNegotiation = true;
+        }
+        await pc.setRemoteDescription({ type: 'offer', sdp: d.sdp });
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription({ type: 'answer', sdp: hifiAudio(answer.sdp) });
+        send({ t: 'sdp', d: { type: 'answer', sdp: pc.localDescription.sdp } });
+      } else if (d.type === 'answer' && pc.signalingState === 'have-local-offer') {
+        await pc.setRemoteDescription({ type: 'answer', sdp: d.sdp });
+        S.negotiating = false;
+        boostMovieBitrate();
+      }
+    } catch (e) {
+      console.warn('sdp', e);
+      S.negotiating = false;
+    }
+    if (S.needNegotiation && pc.signalingState === 'stable') negotiate();
+  }
+
+  function watchLinkTracks(c) {
+    c.peerConnection.addEventListener('track', (e) => {
+      if (S.conn !== c) return;
+      const stream = e.streams[0] || S.remoteMovie || new MediaStream();
+      if (!e.streams[0]) stream.addTrack(e.track);
+      S.remoteMovie = stream;
+      if (S.partnerStreaming) startReceiving(stream);
+    });
+  }
+
+  function boostMovieBitrate() {
+    const sender = S.movieTx && S.movieTx.video;
+    if (!sender) return;
+    const p = sender.getParameters();
+    if (!p.encodings || !p.encodings.length) return;
+    p.encodings[0].maxBitrate = MOVIE_BITRATE;
+    p.degradationPreference = 'maintain-resolution';
+    sender.setParameters(p).catch((e) => console.warn('setParameters', e));
   }
 
   function captureMovie() {
@@ -823,42 +1028,50 @@
     return null;
   }
 
+  function setMovieTracks(cap) {
+    const tx = S.movieTx;
+    if (!tx) return;
+    const v = cap && cap.getVideoTracks()[0];
+    const a = cap && cap.getAudioTracks()[0];
+    if (v) { try { v.contentHint = 'motion'; } catch (e) { /* unsupported */ } }
+    if (a) { try { a.contentHint = 'music'; } catch (e) { /* unsupported */ } }
+    tx.video.replaceTrack(v || null).catch((e) => console.warn('replaceTrack', e));
+    tx.audio.replaceTrack(a || null).catch((e) => console.warn('replaceTrack', e));
+  }
+
   // Start streaming our movie to the partner. Returns quietly if the video has
   // no frames yet — reconcile() calls again on loadeddata / play.
   function startSharing() {
-    if (S.movieOut || !connected() || !S.source || movie.readyState < 2) return;
-    if (!S.outCapture) S.outCapture = captureMovie();
+    const pc = linkPc();
+    if (S.movieOut || !pc || !S.source || movie.readyState < 2) return;
+    if (!S.outCapture) {
+      S.outCapture = captureMovie();
+      // Chrome may add the audio track a moment later — pick it up when it appears.
+      if (S.outCapture) S.outCapture.addEventListener('addtrack', () => { if (S.movieOut) setMovieTracks(S.outCapture); });
+    }
     const cap = S.outCapture;
     if (!cap) {
       S.shareWanted = false;
-      showBanner('Your browser can’t stream video. Use Chrome, Edge or Firefox on a computer — or both open the same file.');
+      showBanner('Your browser can’t stream video. Use Chrome, Edge or Firefox on a computer — or send the movie to your partner.');
       updateUI();
       return;
     }
-    if (!cap.getVideoTracks().length && !cap.getAudioTracks().length) return;
-    cap.getVideoTracks().forEach((t) => { try { t.contentHint = 'motion'; } catch (e) { /* unsupported */ } });
-    cap.getAudioTracks().forEach((t) => { try { t.contentHint = 'music'; } catch (e) { /* unsupported */ } });
+    if (!cap.getTracks().length) return;
 
-    const call = S.peer.call(S.conn.peer, cap, { metadata: { kind: 'movie' }, sdpTransform: hifiAudio });
-    if (!call) return;
-    S.movieOut = call;
-    call.on('close', () => { if (S.movieOut === call) { S.movieOut = null; updateUI(); } });
-    call.on('error', (e) => console.warn('movie call', e));
-    // Raise the video bitrate cap once the connection is negotiated.
-    const boost = () => {
-      const pc = call.peerConnection;
-      if (!pc) return;
-      pc.getSenders().forEach((sender) => {
-        if (!sender.track || sender.track.kind !== 'video') return;
-        const p = sender.getParameters();
-        if (!p.encodings || !p.encodings.length) return;
-        p.encodings[0].maxBitrate = MOVIE_BITRATE;
-        p.degradationPreference = 'maintain-resolution';
-        sender.setParameters(p).catch((e) => console.warn('setParameters', e));
-      });
-    };
-    setTimeout(boost, 1500);
-    setTimeout(boost, 5000);
+    if (!S.movieTx || S.movieTx.pc !== pc) {
+      // First time on this connection: add one video + one audio sender, then renegotiate.
+      S.movieTx = {
+        pc,
+        video: pc.addTransceiver('video', { direction: 'sendonly', streams: [cap] }).sender,
+        audio: pc.addTransceiver('audio', { direction: 'sendonly', streams: [cap] }).sender,
+      };
+      setMovieTracks(cap);
+      negotiate();
+    } else {
+      setMovieTracks(cap); // senders already negotiated: just swap the tracks in
+      boostMovieBitrate();
+    }
+    S.movieOut = true;
     send({ t: 'stream-on' });
     sendTick();
     addSys(`Streaming “${S.source.name}” to ${S.partnerName}`);
@@ -868,15 +1081,15 @@
 
   function stopSharing(silent) {
     if (S.movieOut) {
-      const c = S.movieOut; S.movieOut = null;
-      c.close();
+      S.movieOut = false;
+      setMovieTracks(null);
       if (!silent) send({ t: 'stream-off' });
     }
     updateUI();
   }
 
   function dropCapture() {
-    stopSharing(true);
+    stopSharing();
     if (S.outCapture) { S.outCapture.getTracks().forEach((t) => t.stop()); S.outCapture = null; }
     if (S.outAudioCtx) { S.outAudioCtx.close().catch(() => {}); S.outAudioCtx = null; }
   }
@@ -891,13 +1104,17 @@
   }
 
   function startReceiving(stream) {
+    if (!stream || !stream.getTracks().length) return;
+    const wasReceiving = S.receiving && movie.srcObject === stream;
     S.receiving = true;
     hideBanner();
-    movie.srcObject = stream;
-    movie.volume = Number($('sbVol').value);
+    if (!wasReceiving) {
+      movie.srcObject = stream;
+      movie.volume = Number($('sbVol').value);
+      $('streambar').classList.add('show');
+      setTimeout(() => $('streambar').classList.remove('show'), 4000);
+    }
     movie.play().catch((e) => { if (e.name === 'NotAllowedError') $('tapPlay').classList.remove('hidden'); });
-    $('streambar').classList.add('show');
-    setTimeout(() => $('streambar').classList.remove('show'), 4000);
     updateUI();
   }
 
@@ -938,7 +1155,7 @@
 
   function setSource(src, url, fromPartner) {
     dropCapture();
-    if (S.fileOut) { S.fileOut.conn.close(); S.fileOut = null; }
+    if (S.fileOut) cancelTransfers();
     S.source = src;
     S.pendingSync = true;
     S.sharer = !fromPartner;
@@ -1005,7 +1222,7 @@
   setInterval(() => {
     if (!connected()) return;
     send({ t: 'ping' });
-    if (Date.now() - S.lastSeen > 15000) S.conn.close();
+    if (Date.now() - S.lastSeen > 45000) S.conn.close();
   }, 2000);
 
   /* streambar: the partner controls our stream, we control theirs */
@@ -1040,6 +1257,7 @@
     switch (m.t) {
       case 'ping': return;
       case 'hello':
+        if (m.v !== VERSION) showBanner('You and your partner have different versions of this page open — both of you please reload the page.');
         S.partnerName = String(m.name || '').slice(0, 24) || 'Partner';
         S.partnerCid = typeof m.cid === 'string' ? m.cid : null;
         S.pMic = m.mic !== false; S.pCam = m.cam !== false;
@@ -1075,15 +1293,30 @@
         if (sameSource(S.partnerSource)) applyRemote({ t: m.paused ? 'pause' : 'play', time: m.time });
         break;
       case 'cmd': onCmd(m); break;
+      case 'sdp': onSdp(m.d); break;
+      case 'file-offer': receiveFile(m); break;
+      case 'file-ready':
+        if (S.fileOut && S.fileOut.id === m.id) pumpFile(S.fileOut);
+        break;
+      case 'file-cancel':
+        [S.fileOut, S.fileIn].forEach((x) => { if (x && x.id === m.id) closeTransfer(x); });
+        break;
       case 'file-done':
-        if (S.fileOut) {
+        if (S.fileOut && S.fileOut.id === m.id) {
           const x = S.fileOut; x.complete = true; S.fileOut = null;
           addSys(`${S.partnerName} has the movie now ✓`);
-          setTimeout(() => x.conn.close(), 1000);
+          setTimeout(() => x.ch.close(), 1000);
         }
         break;
-      case 'stream-on': hideBanner(); break;
-      case 'stream-off': stopReceiving(); break;
+      case 'stream-on':
+        hideBanner();
+        S.partnerStreaming = true;
+        startReceiving(S.remoteMovie);
+        break;
+      case 'stream-off':
+        S.partnerStreaming = false;
+        stopReceiving();
+        break;
       case 'subs':
         if (typeof m.text === 'string') applySubs(m.text, m.name, true);
         break;
@@ -1110,7 +1343,6 @@
     } else if (src.kind === 'file' && sameSource(src)) {
       hideBanner();
       addSys(`You both have “${src.name}” — playing your own copies in sync (best quality)`);
-      if (S.movieIn) { S.movieIn.close(); S.movieIn = null; }
       stopReceiving();
     }
     reconcile();
@@ -1123,63 +1355,82 @@
    * ==================================================================== */
   const MB = 1 << 20;
 
-  function waitLow(dc) {
+  function waitFor(ch, events) {
     return new Promise((resolve) => {
-      const done = () => { dc.removeEventListener('bufferedamountlow', done); dc.removeEventListener('close', done); resolve(); };
-      dc.addEventListener('bufferedamountlow', done);
-      dc.addEventListener('close', done);
+      const done = () => { events.forEach((e) => ch.removeEventListener(e, done)); resolve(); };
+      events.forEach((e) => ch.addEventListener(e, done));
     });
   }
 
+  // A pre-agreed ("negotiated") data channel opens on the existing connection
+  // without any new handshake — both sides create it with the same id.
+  function openFileChannel(id) {
+    const ch = linkPc().createDataChannel('movie-file', { negotiated: true, id, ordered: true });
+    ch.binaryType = 'arraybuffer';
+    return ch;
+  }
+
+  let fileSeq = 0;
   function sendFile() {
-    if (!connected() || !S.file || S.fileOut) return;
+    if (!connected() || !linkPc() || !S.file || S.fileOut) return;
     const f = S.file;
-    const c = S.peer.connect(S.conn.peer, {
-      reliable: true, serialization: 'raw',
-      metadata: { kind: 'file', name: f.name, size: f.size, type: f.type },
-    });
-    const x = S.fileOut = { conn: c, dir: 'out', total: f.size, queued: 0, done: 0, t0: 0 };
-    hideBanner();
-    c.on('open', async () => {
-      const dc = c.dataChannel;
-      dc.bufferedAmountLowThreshold = 2 * MB;
-      x.t0 = Date.now();
-      try {
-        for (let off = 0; off < f.size;) {
-          const buf = await f.slice(off, off + 4 * MB).arrayBuffer();
-          for (let i = 0; i < buf.byteLength; i += 64 * 1024) {
-            if (dc.bufferedAmount > 12 * MB) await waitLow(dc);
-            if (S.fileOut !== x || dc.readyState !== 'open') return;
-            dc.send(buf.slice(i, i + 64 * 1024));
-          }
-          off += buf.byteLength;
-          x.queued = off;
-        }
-      } catch (e) {
-        console.warn('file send', e);
-        toast('Sending the movie failed');
-        c.close();
-      }
-    });
-    c.on('close', () => {
+    const id = 100 + 2 * (fileSeq++ % 400) + (S.isHost ? 0 : 1); // host even, guest odd: never clash
+    let ch;
+    try { ch = openFileChannel(id); }
+    catch (e) { console.warn('file channel', e); toast('Could not start sending the movie'); return; }
+    const x = S.fileOut = { id, ch, file: f, dir: 'out', total: f.size, queued: 0, done: 0, t0: 0 };
+    ch.addEventListener('close', () => {
       if (S.fileOut !== x) return;
       S.fileOut = null;
       if (!x.complete) toast('Movie transfer stopped');
       updateXfer();
     });
-    c.on('error', (e) => console.warn('file conn', e));
+    send({ t: 'file-offer', id, name: f.name, size: f.size, type: f.type });
+    hideBanner();
     addSys(`Sending “${f.name}” to ${S.partnerName}…`);
     updateXfer();
   }
 
-  function receiveFile(c) {
-    if (S.fileIn) S.fileIn.conn.close();
-    const m = c.metadata;
+  // Runs once the partner has opened its end of the channel.
+  async function pumpFile(x) {
+    if (x.started) return;
+    x.started = true;
+    const ch = x.ch, f = x.file;
+    if (ch.readyState === 'connecting') await waitFor(ch, ['open', 'close']);
+    if (ch.readyState !== 'open') return;
+    ch.bufferedAmountLowThreshold = 2 * MB;
+    x.t0 = Date.now();
+    try {
+      for (let off = 0; off < f.size;) {
+        const buf = await f.slice(off, off + 4 * MB).arrayBuffer();
+        for (let i = 0; i < buf.byteLength; i += 64 * 1024) {
+          if (ch.bufferedAmount > 12 * MB) await waitFor(ch, ['bufferedamountlow', 'close']);
+          if (S.fileOut !== x || ch.readyState !== 'open') return;
+          ch.send(buf.slice(i, i + 64 * 1024));
+        }
+        off += buf.byteLength;
+        x.queued = off;
+      }
+    } catch (e) {
+      console.warn('file send', e);
+      toast('Sending the movie failed');
+      closeTransfer(x);
+    }
+  }
+
+  function receiveFile(m) {
+    const id = Number(m.id);
+    if (!Number.isInteger(id) || id < 100 || id > 1000 || !linkPc()) return;
+    if (S.fileIn) closeTransfer(S.fileIn);
+    let ch;
+    try { ch = openFileChannel(id); }
+    catch (e) { console.warn('file channel', e); send({ t: 'file-cancel', id }); return; }
     const x = S.fileIn = {
-      conn: c, dir: 'in', name: String(m.name || 'movie').slice(0, 200), type: String(m.type || ''),
+      id, ch, dir: 'in', name: String(m.name || 'movie').slice(0, 200), type: String(m.type || ''),
       total: Number(m.size) || 0, done: 0, t0: Date.now(), parts: [], pending: [], pendingBytes: 0,
     };
-    c.on('data', (buf) => {
+    ch.onmessage = (e) => {
+      const buf = e.data;
       if (!(buf instanceof ArrayBuffer) || x.complete) return;
       x.pending.push(buf);
       x.pendingBytes += buf.byteLength;
@@ -1187,13 +1438,14 @@
       // Fold chunks into Blobs as we go so the browser can keep them on disk instead of in RAM.
       if (x.pendingBytes >= 32 * MB) { x.parts.push(new Blob(x.pending)); x.pending = []; x.pendingBytes = 0; }
       if (x.done >= x.total) finishReceive(x);
-    });
-    c.on('close', () => {
+    };
+    ch.addEventListener('close', () => {
       if (S.fileIn !== x) return;
       S.fileIn = null;
       if (!x.complete) toast('Movie transfer stopped');
       updateXfer();
     });
+    send({ t: 'file-ready', id });
     addSys(`${S.partnerName} is sending you “${x.name}”…`);
     updateXfer();
   }
@@ -1204,7 +1456,7 @@
     const file = new File(x.parts, x.name, { type: x.type });
     x.parts = x.pending = [];
     S.fileIn = null;
-    send({ t: 'file-done' });
+    send({ t: 'file-done', id: x.id });
     loadFile(file); // switch to our own copy; it syncs to the partner's position
     S.received = true;
     addSys('Movie downloaded ✓ — you now each play your own copy, in sync');
@@ -1212,10 +1464,19 @@
     updateXfer();
   }
 
-  function cancelTransfers() {
-    [S.fileOut, S.fileIn].forEach((x) => { if (x) x.conn.close(); });
-    S.fileOut = S.fileIn = null;
+  function closeTransfer(x) {
+    if (S.fileOut === x) S.fileOut = null;
+    if (S.fileIn === x) S.fileIn = null;
+    try { x.ch.close(); } catch (e) { /* already closed */ }
     updateXfer();
+  }
+
+  function cancelTransfers() {
+    [S.fileOut, S.fileIn].forEach((x) => {
+      if (!x) return;
+      send({ t: 'file-cancel', id: x.id });
+      closeTransfer(x);
+    });
   }
 
   function fmtLeft(sec) {
@@ -1235,16 +1496,13 @@
     $('xfer').classList.toggle('hidden', !x);
     if (!x) return;
     let done = x.done;
-    if (x.dir === 'out') {
-      const dc = x.conn.dataChannel;
-      done = Math.max(0, x.queued - (dc ? dc.bufferedAmount : 0));
-    }
+    if (x.dir === 'out') done = Math.max(0, x.queued - x.ch.bufferedAmount);
     const pct = x.total ? Math.min(1, done / x.total) : 0;
     const secs = (Date.now() - x.t0) / 1000;
     const rate = x.t0 && secs > 1 ? done / secs : 0;
     const who = x.dir === 'out' ? `Sending movie to ${S.partnerName}` : `Downloading movie from ${S.partnerName}`;
     $('xferBar').value = pct;
-    $('xferText').textContent = !x.t0 ? who + ' — connecting…'
+    $('xferText').textContent = !x.t0 ? who + ' — waiting for their browser…'
       : `${who} — ${Math.floor(pct * 100)}%` + (rate ? ` · ${(rate / MB).toFixed(1)} MB/s · ${fmtLeft((x.total - done) / rate)}` : '');
   }
   setInterval(() => { if (S.fileOut || S.fileIn) updateXfer(); }, 700);
@@ -1323,6 +1581,11 @@
   $('tapPlay').onclick = () => { $('tapPlay').classList.add('hidden'); movie.play().catch(() => {}); };
 
   $('micBtn').onclick = toggleMic;
+  $('devBtn').onclick = async () => { await fillDevices().catch(() => {}); $('devDlg').showModal(); };
+  $('micSel').onchange = (e) => switchDevice('audio', e.target.value);
+  $('camSel').onchange = (e) => switchDevice('video', e.target.value);
+  $('spkSel').onchange = (e) => setSpeaker(e.target.value);
+  if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => { if ($('devDlg').open) fillDevices().catch(() => {}); });
   $('camBtn').onclick = toggleCam;
   $('partnerVol').oninput = (e) => { $('partnerVideo').volume = Number(e.target.value); };
 
